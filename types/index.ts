@@ -1,5 +1,5 @@
 // ─── User / Auth ───────────────────────────────────────────────────
-export type UserRole = 'teacher' | 'student';
+export type UserRole = "teacher" | "student";
 
 export interface User {
   id: string;
@@ -7,27 +7,29 @@ export interface User {
   email: string;
   role: UserRole;
   createdAt: string;
+  pushToken?: string;
+  pushTokenUpdatedAt?: string;
 }
 
 // ─── Tuition ───────────────────────────────────────────────────────
-export type TuitionStatus = 'active' | 'paused' | 'ended';
-export type PaymentStatus = 'paid' | 'not_paid' | 'partial';
+export type TuitionStatus = "active" | "paused" | "ended";
+export type PaymentStatus = "paid" | "not_paid" | "partial";
 
 export interface Tuition {
   id: string;
   teacherId: string;
   // Core fields
   subject: string;
-  startTime: string;              // e.g. "5:00 PM"
-  endTime: string;                // e.g. "6:00 PM"
-  schedule: string;               // e.g. "Mon, Wed, Fri"
+  startTime: string; // e.g. "5:00 PM"
+  endTime: string; // e.g. "6:00 PM"
+  schedule: string; // e.g. "Mon, Wed, Fri"
   datesPerWeek: number;
   plannedClassesPerMonth: number;
   // Student info — optional, can be added later
   studentName?: string;
   studentEmail?: string;
-  studentId?: string;             // populated when student accepts invite
-  salary?: number;                // monthly tuition fee
+  studentId?: string; // populated when student accepts invite
+  salary?: number; // monthly tuition fee
   // Status
   status: TuitionStatus;
   paymentStatus: PaymentStatus;
@@ -39,17 +41,17 @@ export interface Tuition {
 export interface ClassLog {
   id: string;
   tuitionId: string;
-  date: string;       // "2025-03-05"
-  createdAt: string;  // exact timestamp when entry was added
+  date: string; // "2025-03-05"
+  createdAt: string; // exact timestamp when entry was added
 }
 
 // ─── Activity Log ──────────────────────────────────────────────────
 export type ActivityLogType =
-  | 'class_added'
-  | 'class_deleted'
-  | 'reset'
-  | 'homework_added'
-  | 'payment_updated';
+  | "class_added"
+  | "class_deleted"
+  | "reset"
+  | "homework_added"
+  | "payment_updated";
 
 export interface ActivityLog {
   id: string;
@@ -64,7 +66,7 @@ export interface HomeworkComment {
   id: string;
   userId: string;
   userName: string;
-  role: 'teacher' | 'student';
+  role: "teacher" | "student";
   text: string;
   timestamp: string;
 }

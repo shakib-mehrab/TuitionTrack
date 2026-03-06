@@ -118,7 +118,7 @@ export default function EmailVerificationScreen() {
             disabled={isResending}
           >
             <MaterialCommunityIcons
-              name={isResending ? 'loading' : 'email-send-outline'}
+              name={isResending ? 'loading' : 'email-fast'}
               size={20}
               color={Colors.white}
             />

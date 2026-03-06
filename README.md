@@ -2,7 +2,20 @@
 
 > A production-grade React Native app for tutors and students to manage tuitions, classes, homework, and payments.
 
-## 🚀 Quick Start
+## � Complete Documentation
+
+**→ [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) - START HERE for all guides!**
+
+Quick access to specific guides:
+
+- 🏗️ **[BUILD_APK_LOCALLY.md](BUILD_APK_LOCALLY.md)** - Build production APK on your computer (FREE, no limits!)
+- 🔄 **[REBUILD_VS_OTA_GUIDE.md](REBUILD_VS_OTA_GUIDE.md)** - When to rebuild vs hot-reload
+- 🚀 **[PRODUCTION_BUILD_GUIDE.md](PRODUCTION_BUILD_GUIDE.md)** - Complete deployment guide
+- 🔐 **[GOOGLE_SIGNIN_FIX.md](GOOGLE_SIGNIN_FIX.md)** - Fix "Developer error"
+
+---
+
+## �🚀 Quick Start
 
 ### For First-Time Setup
 

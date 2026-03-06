@@ -1,11 +1,12 @@
 import { COLLECTIONS } from "@/config/firebase";
+import { notificationService } from "@/services/notifications";
 import type {
-  ActivityLog,
-  ClassLog,
-  Homework,
-  HomeworkComment,
-  PaymentStatus,
-  Tuition,
+    ActivityLog,
+    ClassLog,
+    Homework,
+    HomeworkComment,
+    PaymentStatus,
+    Tuition,
 } from "@/types";
 import firestore from "@react-native-firebase/firestore";
 
@@ -255,6 +256,40 @@ export class FirestoreService {
         `Class added for ${date}`,
       );
 
+      // Send notification to student (non-blocking)
+      try {
+        const tuitionDoc = await firestore()
+          .collection(COLLECTIONS.TUITIONS)
+          .doc(tuitionId)
+          .get();
+        const tuition = tuitionDoc.data() as Tuition;
+
+        if (
+          tuition?.studentId &&
+          tuition.subject &&
+          tuition.schedule &&
+          tuition.startTime
+        ) {
+          // Get teacher name
+          const teacherDoc = await firestore()
+            .collection(COLLECTIONS.USERS)
+            .doc(tuition.teacherId)
+            .get();
+          const teacherName = teacherDoc.data()?.name || "Teacher";
+
+          await notificationService.sendClassScheduledNotification(
+            tuition.studentId,
+            tuition.subject,
+            tuition.schedule,
+            tuition.startTime,
+            teacherName,
+            tuitionId,
+          );
+        }
+      } catch (notifError) {
+        console.warn("Failed to send class notification:", notifError);
+      }
+
       return classLog;
     } catch (error) {
       console.error("Add class log error:", error);
@@ -354,6 +389,28 @@ export class FirestoreService {
         "homework_added",
         `Homework: ${homework.chapter}`,
       );
+
+      // Send notification to student (non-blocking)
+      try {
+        const tuitionDoc = await firestore()
+          .collection(COLLECTIONS.TUITIONS)
+          .doc(homework.tuitionId)
+          .get();
+        const tuition = tuitionDoc.data() as Tuition;
+
+        if (tuition?.studentId) {
+          await notificationService.sendNewHomeworkNotification(
+            tuition.studentId,
+            homework.subject,
+            homework.chapter,
+            homework.task,
+            homework.tuitionId,
+            homework.id,
+          );
+        }
+      } catch (notifError) {
+        console.warn("Failed to send homework notification:", notifError);
+      }
 
       return homework;
     } catch (error) {
@@ -560,6 +617,29 @@ export class FirestoreService {
         `Payment ${status} for ${month}`,
       );
 
+      // Send notification to student when payment is confirmed (non-blocking)
+      if (status === "paid") {
+        try {
+          const tuitionDoc = await firestore()
+            .collection(COLLECTIONS.TUITIONS)
+            .doc(tuitionId)
+            .get();
+          const tuition = tuitionDoc.data() as Tuition;
+
+          if (tuition?.studentId && tuition.subject) {
+            await notificationService.sendPaymentConfirmedNotification(
+              tuition.studentId,
+              tuition.subject,
+              amount,
+              month,
+              tuitionId,
+            );
+          }
+        } catch (notifError) {
+          console.warn("Failed to send payment notification:", notifError);
+        }
+      }
+
       console.log("Payment status updated successfully");
     } catch (error) {
       console.error("Update payment status error:", error);
@@ -750,6 +830,34 @@ export class FirestoreService {
         usedBy: studentId,
         usedAt: new Date().toISOString(),
       });
+
+      // Send notifications to both student and teacher (non-blocking)
+      try {
+        // Get teacher name
+        const teacherDoc = await firestore()
+          .collection(COLLECTIONS.USERS)
+          .doc(tuition.teacherId)
+          .get();
+        const teacherName = teacherDoc.data()?.name || "Teacher";
+
+        // Notify student about enrollment confirmation
+        await notificationService.sendEnrollmentConfirmedNotification(
+          studentId,
+          tuition.subject,
+          teacherName,
+          invitation.tuitionId,
+        );
+
+        // Notify teacher about new student
+        await notificationService.sendNewStudentEnrolledNotification(
+          tuition.teacherId,
+          studentName,
+          tuition.subject,
+          invitation.tuitionId,
+        );
+      } catch (notifError) {
+        console.warn("Failed to send enrollment notifications:", notifError);
+      }
 
       return { ...tuition, studentId, studentName, studentEmail };
     } catch (error: any) {

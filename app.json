@@ -8,6 +8,10 @@
     "scheme": "tuitiontrack",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/ed8f80f7-c24c-4925-8c61-94301399eea7"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.shakibmehrab.TuitionTrack"
@@ -21,7 +25,13 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.shakibmehrab.TuitionTrack"
+      "package": "com.shakibmehrab.TuitionTrack",
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -31,6 +41,14 @@
       "expo-router",
       "@react-native-firebase/app",
       "@react-native-google-signin/google-signin",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/TuitionTracklogo.png",
+          "color": "#EAB308",
+          "sounds": []
+        }
+      ],
       [
         "expo-splash-screen",
         {

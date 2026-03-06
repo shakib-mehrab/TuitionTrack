@@ -1,5 +1,6 @@
 import { initializeFirebase } from '@/config';
 import { Colors, FontFamily } from '@/constants/Colors';
+import { notificationService } from '@/services/notifications';
 import { useAuthStore } from '@/store/authStore';
 import {
     Poppins_400Regular,
@@ -117,6 +118,26 @@ export default function RootLayout() {
       }
     }
   }, [isAuthenticated, isMounted, isFirebaseReady, segments, user]);
+
+  // Register for push notifications when user is authenticated
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+
+    async function setupNotifications() {
+      try {
+        const pushToken = await notificationService.registerForPushNotifications();
+        if (pushToken && user?.id) {
+          await notificationService.savePushToken(user.id, pushToken);
+          console.log('Push notifications registered successfully');
+        }
+      } catch (error) {
+        console.warn('Failed to setup push notifications:', error);
+        // Non-blocking - app continues to work even if notifications fail
+      }
+    }
+
+    setupNotifications();
+  }, [isAuthenticated, user?.id]);
 
   // Wait for fonts and Firebase to be ready
   if (!fontsLoaded || !isFirebaseReady) return null;
