@@ -38,7 +38,12 @@ interface TeacherState {
   // Payment
   updatePaymentStatus: (
     tuitionId: string,
+    teacherId: string,
+    studentId: string,
+    month: string,
     status: PaymentStatus,
+    amount: number,
+    notes?: string,
   ) => Promise<void>;
 
   // Homework CRUD
@@ -252,9 +257,25 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
   },
 
   // ── Payment ──
-  updatePaymentStatus: async (tuitionId, status) => {
+  updatePaymentStatus: async (
+    tuitionId,
+    teacherId,
+    studentId,
+    month,
+    status,
+    amount,
+    notes,
+  ) => {
     try {
-      await FirestoreService.updatePaymentStatus(tuitionId, status);
+      await FirestoreService.updatePaymentStatus(
+        tuitionId,
+        teacherId,
+        studentId,
+        month,
+        status,
+        amount,
+        notes,
+      );
       // Real-time listener will update the state
     } catch (error) {
       console.error("Update payment status error:", error);

@@ -3,10 +3,11 @@ import { BorderRadius, Colors, FontFamily, FontSize, GlassDialog, GlassDialogPri
 import { useAuthStore } from '@/store/authStore';
 import { useTeacherStore } from '@/store/teacherStore';
 import type { Homework, PaymentStatus } from '@/types';
-import { generateTuitionPDF } from '@/utils/pdf';
+import { generatePaymentReceipt, generateTuitionPDF } from '@/utils/pdf';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Clipboard, ScrollView, Share, StyleSheet, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Clipboard, KeyboardAvoidingView, Platform, ScrollView, Share, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
     Appbar,
     Button,
@@ -29,6 +30,7 @@ type DialogMode =
   | 'addHomework'
   | 'editHomework'
   | 'deleteHomework'
+  | 'viewHomework'
   | 'payment'
   | 'inviteStudent'
   | null;
@@ -74,6 +76,7 @@ export default function TuitionDetailScreen() {
     markHomeworkComplete,
     updatePaymentStatus,
     generateInviteCode,
+    addComment,
   } = useTeacherStore();
 
   const tuition = getTuitionById(id);
@@ -97,13 +100,17 @@ export default function TuitionDetailScreen() {
   const [hwDueDate, setHwDueDate] = useState('');
   const [hwNotes, setHwNotes] = useState('');
   const [hwErrors, setHwErrors] = useState<Record<string, string>>({});
-  const [viewingHw, setViewingHw] = useState<Homework | null>(null);
+  const [viewingHwId, setViewingHwId] = useState<string | null>(null);
   const [editingHw, setEditingHw] = useState<Homework | null>(null);
   const [deletingHw, setDeletingHw] = useState<Homework | null>(null);
 
   // Invite code state
   const [inviteCode, setInviteCode] = useState<string>('');
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+
+  // Comment state
+  const [commentText, setCommentText] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   if (!tuition) {
     return (
@@ -119,6 +126,12 @@ export default function TuitionDetailScreen() {
   const progress = Math.min(classCount / planned, 1);
   const remaining = Math.max(planned - classCount, 0);
 
+  // Get the current homework being viewed (reactively updates when homework changes)
+  const viewingHw = useMemo(() => {
+    if (!viewingHwId) return null;
+    return homeworkList.find(hw => hw.id === viewingHwId) || null;
+  }, [viewingHwId, homeworkList]);
+
   const closeDialog = () => {
     setDialogMode(null);
     setClassDate(new Date().toISOString().slice(0, 10));
@@ -131,7 +144,9 @@ export default function TuitionDetailScreen() {
     setHwErrors({});
     setEditingHw(null);
     setDeletingHw(null);
-    setViewingHw(null);
+    setViewingHwId(null);
+    setCommentText('');
+    setIsSending(false);
   };
 
   const handleDownloadPDF = async () => {
@@ -259,6 +274,40 @@ export default function TuitionDetailScreen() {
       closeDialog();
     } catch (error) {
       setSnackMsg('Failed to delete homework');
+    }
+  };
+
+  const handleDownloadReceipt = async () => {
+    if (!tuition || !user) return;
+    try {
+      await generatePaymentReceipt(
+        tuition,
+        classCount,
+        planned,
+        user.name,
+        currentMonth
+      );
+    } catch (error) {
+      setSnackMsg('Failed to generate receipt');
+    }
+  };
+
+  const handleAddComment = async (homeworkId: string, userId: string, userName: string) => {
+    if (!commentText.trim()) return;
+    setIsSending(true);
+    try {
+      await addComment(homeworkId, {
+        userId,
+        userName,
+        role: 'teacher',
+        text: commentText.trim(),
+      });
+      setCommentText('');
+      setSnackMsg('Comment added');
+    } catch (error) {
+      setSnackMsg('Failed to add comment');
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -407,55 +456,74 @@ export default function TuitionDetailScreen() {
               homeworkList.map((hw, idx) => (
                 <View key={hw.id}>
                   {idx > 0 && <Divider style={{ marginVertical: Spacing.xs }} />}
-                  <View style={styles.hwRow}>
-                    <View style={{ flex: 1 }} onTouchEnd={() => setViewingHw(hw)}>
-                      <Text variant="bodyMedium" style={[styles.hwChapter, hw.completed && styles.strikethrough]}>
-                        {hw.subject}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.hwTask}>{hw.chapter}</Text>
-                      <Text variant="bodySmall" style={styles.hwTask}>{hw.task}</Text>
-                      <Text variant="bodySmall" style={styles.hwDue}>Due: {formatDate(hw.dueDate)}</Text>
-                      {hw.notes && (
-                        <Text variant="bodySmall" style={styles.hwNotes}>
-                          Note: {hw.notes}
+                  <TouchableOpacity 
+                    activeOpacity={0.7} 
+                    onPress={() => { setViewingHwId(hw.id); setDialogMode('viewHomework'); }}
+                    style={styles.hwItem}
+                  >
+                    <View style={styles.hwRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="bodyMedium" style={[styles.hwChapter, hw.completed && styles.strikethrough]}>
+                          {hw.subject}
                         </Text>
-                      )}
-                      {hw.comments.length > 0 && (
-                        <Text variant="bodySmall" style={styles.hwComments}>
-                          {hw.comments.length} comment{hw.comments.length > 1 ? 's' : ''}
-                        </Text>
-                      )}
+                        <Text variant="bodySmall" style={styles.hwTask}>Chapter: {hw.chapter}</Text>
+                        <Text variant="bodySmall" style={styles.hwTask}>Task: {hw.task}</Text>
+                        <View style={styles.hwMetaRow}>
+                          <View style={styles.hwMetaItem}>
+                            <MaterialCommunityIcons name="calendar-clock" size={14} color={Colors.warning} />
+                            <Text variant="bodySmall" style={styles.hwDue}>
+                              {formatDate(hw.dueDate)}
+                            </Text>
+                          </View>
+                          {hw.comments.length > 0 && (
+                            <View style={styles.hwMetaItem}>
+                              <MaterialCommunityIcons name="comment-multiple" size={14} color={Colors.info} />
+                              <Text variant="bodySmall" style={styles.hwComments}>
+                                {hw.comments.length}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.hwActions}>
+                        <IconButton
+                          icon={hw.completed ? 'check-circle' : 'check-circle-outline'}
+                          size={20}
+                          iconColor={hw.completed ? Colors.success : Colors.textTertiary}
+                          onPress={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await markHomeworkComplete(hw.id, !hw.completed);
+                            } catch {
+                              setSnackMsg('Failed to update homework status');
+                            }
+                          }}
+                          style={{ margin: 0 }}
+                        />
+                        <IconButton
+                          icon="pencil-outline"
+                          size={18}
+                          iconColor={Colors.primary}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            openEditHomework(hw);
+                          }}
+                          style={{ margin: 0 }}
+                        />
+                        <IconButton
+                          icon="delete-outline"
+                          size={18}
+                          iconColor={Colors.error}
+                          onPress={(e) => { 
+                            e.stopPropagation();
+                            setDeletingHw(hw); 
+                            setDialogMode('deleteHomework'); 
+                          }}
+                          style={{ margin: 0 }}
+                        />
+                      </View>
                     </View>
-                    <View style={styles.hwActions}>
-                      <IconButton
-                        icon={hw.completed ? 'check-circle' : 'check-circle-outline'}
-                        size={20}
-                        iconColor={hw.completed ? Colors.success : Colors.textTertiary}
-                        onPress={async () => {
-                          try {
-                            await markHomeworkComplete(hw.id, !hw.completed);
-                          } catch {
-                            setSnackMsg('Failed to update homework status');
-                          }
-                        }}
-                        style={{ margin: 0 }}
-                      />
-                      <IconButton
-                        icon="pencil-outline"
-                        size={18}
-                        iconColor={Colors.primary}
-                        onPress={() => openEditHomework(hw)}
-                        style={{ margin: 0 }}
-                      />
-                      <IconButton
-                        icon="delete-outline"
-                        size={18}
-                        iconColor={Colors.error}
-                        onPress={() => { setDeletingHw(hw); setDialogMode('deleteHomework'); }}
-                        style={{ margin: 0 }}
-                      />
-                    </View>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               ))
             )}
@@ -601,6 +669,124 @@ export default function TuitionDetailScreen() {
           </Dialog.Actions>
         </Dialog>
 
+        {/* View Homework Details */}
+        <Dialog 
+          visible={dialogMode === 'viewHomework'} 
+          onDismiss={closeDialog}
+          style={GlassDialog}
+        >
+          <Dialog.Title style={GlassDialogTitle}>
+            {viewingHw?.subject} • {viewingHw?.chapter}
+          </Dialog.Title>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+          >
+            <Dialog.ScrollArea>
+              <ScrollView 
+                contentContainerStyle={{ padding: Spacing.md }} 
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                alwaysBounceVertical={false}
+              >
+                {viewingHw && (
+                  <>
+                    <View style={styles.hwDetailRow}>
+                      <Text style={styles.hwDetailLabel}>Task</Text>
+                      <Text style={styles.hwDetailValue}>{viewingHw.task}</Text>
+                    </View>
+                    <View style={styles.hwDetailRow}>
+                      <Text style={styles.hwDetailLabel}>Due Date</Text>
+                      <Text style={styles.hwDetailValue}>{formatDate(viewingHw.dueDate)}</Text>
+                    </View>
+                    {viewingHw.notes && (
+                      <View style={styles.hwDetailRow}>
+                        <Text style={styles.hwDetailLabel}>Notes</Text>
+                        <Text style={styles.hwDetailValue}>{viewingHw.notes}</Text>
+                      </View>
+                    )}
+                    <View style={styles.hwDetailRow}>
+                      <Text style={styles.hwDetailLabel}>Status</Text>
+                      <Chip
+                        icon={viewingHw.completed ? 'check-circle' : 'clock-outline'}
+                        style={{ 
+                          backgroundColor: viewingHw.completed ? Colors.success + '22' : Colors.warning + '22', 
+                          alignSelf: 'flex-start' 
+                        }}
+                        textStyle={{ color: viewingHw.completed ? Colors.success : Colors.warning }}
+                      >
+                        {viewingHw.completed ? 'Completed' : 'Pending'}
+                      </Chip>
+                    </View>
+                    
+                    <Divider style={{ marginVertical: Spacing.md }} />
+                    
+                    <Text variant="titleSmall" style={{ fontFamily: FontFamily.semibold, marginBottom: Spacing.sm }}>
+                      Comments ({viewingHw.comments.length})
+                    </Text>
+                    
+                    {viewingHw.comments.length === 0 ? (
+                      <Text style={{ color: Colors.textSecondary, fontStyle: 'italic', marginBottom: Spacing.sm }}>
+                        No comments yet. Add one below!
+                      </Text>
+                    ) : (
+                      <View style={{ marginBottom: Spacing.sm }}>
+                        {viewingHw.comments.map((comment: any) => (
+                          <View 
+                            key={comment.id} 
+                            style={[
+                              styles.commentBox,
+                              comment.role === 'teacher' ? styles.teacherComment : styles.studentComment
+                            ]}
+                          >
+                            <View style={styles.commentHeader}>
+                              <Text style={styles.commentAuthor}>
+                                {comment.userName} {comment.role === 'teacher' ? '(Teacher)' : '(Student)'}
+                              </Text>
+                              <Text style={styles.commentTime}>{formatTime(comment.timestamp)}</Text>
+                            </View>
+                            <Text style={styles.commentText}>{comment.text}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    
+                    {/* Add Comment */}
+                    <View style={styles.addCommentRow}>
+                      <TextInput
+                        mode="outlined"
+                        placeholder="Add a comment..."
+                        value={commentText}
+                        onChangeText={setCommentText}
+                        multiline
+                        dense
+                        style={styles.commentInput}
+                        disabled={isSending}
+                        outlineColor={Colors.border}
+                        activeOutlineColor={GlassDialogPrimary}
+                      />
+                      <Button
+                        mode="contained"
+                        onPress={() => handleAddComment(viewingHw.id, user?.id ?? '', user?.name ?? 'Teacher')}
+                        disabled={!commentText.trim() || isSending}
+                        loading={isSending}
+                        compact
+                        buttonColor={GlassDialogPrimary}
+                      >
+                        Send
+                      </Button>
+                    </View>
+                  </>
+                )}
+              </ScrollView>
+            </Dialog.ScrollArea>
+          </KeyboardAvoidingView>
+          <Dialog.Actions>
+            <Button onPress={closeDialog}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
+
         {/* Payment Dialog */}
         <Dialog visible={dialogMode === 'payment'} onDismiss={closeDialog} style={GlassDialog}>
           <Dialog.Title style={GlassDialogTitle}>Update Payment</Dialog.Title>
@@ -616,11 +802,28 @@ export default function TuitionDetailScreen() {
                 mode={tuition.paymentStatus === s ? 'contained' : 'outlined'}
                 onPress={async () => {
                   try {
-                    await updatePaymentStatus(tuition.id, s);
+                    if (!tuition.studentId) {
+                      setSnackMsg('No student assigned to this tuition');
+                      return;
+                    }
+                    if (!tuition.salary) {
+                      setSnackMsg('Please set monthly fee in tuition details');
+                      return;
+                    }
+                    await updatePaymentStatus(
+                      tuition.id,
+                      user?.id ?? '',
+                      tuition.studentId,
+                      currentMonth,
+                      s,
+                      tuition.salary
+                    );
                     setSnackMsg(`Payment updated to ${paymentLabel(s)}`);
                     closeDialog();
                   } catch (error) {
-                    setSnackMsg('Failed to update payment status');
+                    console.error('Payment update error:', error);
+                    const errorMsg = error instanceof Error ? error.message : 'Failed to update payment status';
+                    setSnackMsg(errorMsg);
                   }
                 }}
                 style={{ marginBottom: Spacing.sm }}
@@ -630,6 +833,19 @@ export default function TuitionDetailScreen() {
                 {paymentLabel(s)}
               </Button>
             ))}
+            
+            <Divider style={{ marginVertical: Spacing.md }} />
+            
+            <Button
+              mode="contained-tonal"
+              icon="file-download"
+              onPress={handleDownloadReceipt}
+              style={{ marginTop: Spacing.sm }}
+              buttonColor={Colors.accent + '22'}
+              textColor={Colors.accent}
+            >
+              Download Payment Receipt
+            </Button>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={closeDialog}>Close</Button>
@@ -677,67 +893,6 @@ export default function TuitionDetailScreen() {
             >
               Share
             </Button>
-          </Dialog.Actions>
-        </Dialog>
-
-        {/* View Homework Details Dialog */}
-        <Dialog visible={!!viewingHw} onDismiss={closeDialog} style={GlassDialog}>
-          <Dialog.Title style={GlassDialogTitle}>{viewingHw?.subject}</Dialog.Title>
-          <Dialog.ScrollArea style={{ maxHeight: 500 }}>
-            <ScrollView>
-              {viewingHw && (
-                <>
-                  <View style={styles.hwDetailRow}>
-                    <Text style={styles.hwDetailLabel}>Chapter</Text>
-                    <Text style={styles.hwDetailValue}>{viewingHw.chapter}</Text>
-                  </View>
-                  <View style={styles.hwDetailRow}>
-                    <Text style={styles.hwDetailLabel}>Task</Text>
-                    <Text style={styles.hwDetailValue}>{viewingHw.task}</Text>
-                  </View>
-                  <View style={styles.hwDetailRow}>
-                    <Text style={styles.hwDetailLabel}>Due Date</Text>
-                    <Text style={styles.hwDetailValue}>{formatDate(viewingHw.dueDate)}</Text>
-                  </View>
-                  {viewingHw.notes && (
-                    <View style={styles.hwDetailRow}>
-                      <Text style={styles.hwDetailLabel}>Notes</Text>
-                      <Text style={styles.hwDetailValue}>{viewingHw.notes}</Text>
-                    </View>
-                  )}
-                  <View style={styles.hwDetailRow}>
-                    <Text style={styles.hwDetailLabel}>Status</Text>
-                    <Chip
-                      icon={viewingHw.completed ? 'check-circle' : 'clock-outline'}
-                      style={{ backgroundColor: viewingHw.completed ? Colors.success + '22' : Colors.warning + '22', alignSelf: 'flex-start' }}
-                      textStyle={{ color: viewingHw.completed ? Colors.success : Colors.warning }}
-                    >
-                      {viewingHw.completed ? 'Completed' : 'Pending'}
-                    </Chip>
-                  </View>
-                  <Divider style={{ marginVertical: Spacing.md }} />
-                  <Text variant="titleSmall" style={{ fontFamily: FontFamily.semibold, marginBottom: Spacing.sm }}>
-                    Comments ({viewingHw.comments.length})
-                  </Text>
-                  {viewingHw.comments.length === 0 ? (
-                    <Text style={{ color: Colors.textSecondary, fontStyle: 'italic' }}>No comments yet</Text>
-                  ) : (
-                    viewingHw.comments.map((comment) => (
-                      <View key={comment.id} style={styles.commentBox}>
-                        <View style={styles.commentHeader}>
-                          <Text style={styles.commentAuthor}>{comment.userName}</Text>
-                          <Text style={styles.commentTime}>{formatTime(comment.timestamp)}</Text>
-                        </View>
-                        <Text style={styles.commentText}>{comment.text}</Text>
-                      </View>
-                    ))
-                  )}
-                </>
-              )}
-            </ScrollView>
-          </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button onPress={closeDialog}>Close</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -833,12 +988,21 @@ const styles = StyleSheet.create({
   tableHeader: { borderBottomWidth: 1, borderBottomColor: Colors.border, marginBottom: 2 },
   tableHeaderText: { color: Colors.textSecondary, fontSize: FontSize.xs, fontFamily: FontFamily.semibold },
   tableCell: { flex: 1, fontSize: FontSize.xs, color: Colors.textPrimary, fontFamily: FontFamily.regular },
-  hwRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Spacing.xs },
+  hwItem: {
+    backgroundColor: Colors.surfaceVariant + '40',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border + '60',
+  },
+  hwRow: { flexDirection: 'row', alignItems: 'flex-start' },
   hwChapter: { fontFamily: FontFamily.semibold, color: Colors.textPrimary },
   hwTask: { color: Colors.textSecondary, marginTop: 2, fontFamily: FontFamily.regular },
-  hwDue: { color: Colors.warning, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  hwMetaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: 4 },
+  hwMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  hwDue: { color: Colors.warning, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   hwNotes: { color: Colors.textSecondary, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular, fontStyle: 'italic' },
-  hwComments: { color: Colors.info, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  hwComments: { color: Colors.info, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   hwActions: { flexDirection: 'row', alignItems: 'center' },
   hwDetailRow: { marginBottom: Spacing.md },
   hwDetailLabel: { fontSize: FontSize.xs, color: Colors.textTertiary, fontFamily: FontFamily.semibold, textTransform: 'uppercase', marginBottom: 4 },
@@ -849,10 +1013,28 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md, 
     marginBottom: Spacing.xs 
   },
+  teacherComment: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+  },
+  studentComment: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+  },
   commentHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   commentAuthor: { fontSize: FontSize.xs, fontFamily: FontFamily.semibold, color: Colors.primary },
   commentTime: { fontSize: FontSize.xs, fontFamily: FontFamily.regular, color: Colors.textTertiary },
   commentText: { fontSize: FontSize.sm, fontFamily: FontFamily.regular, color: Colors.textPrimary },
+  addCommentRow: { 
+    flexDirection: 'row', 
+    gap: Spacing.sm, 
+    alignItems: 'flex-end',
+    marginTop: Spacing.sm,
+  },
+  commentInput: { 
+    flex: 1,
+    backgroundColor: Colors.surface,
+  },
   strikethrough: { textDecorationLine: 'line-through', color: Colors.textTertiary },
   activityItem: { paddingVertical: 0 },
   activityTitle: { fontSize: FontSize.sm, color: Colors.textPrimary, fontFamily: FontFamily.regular },

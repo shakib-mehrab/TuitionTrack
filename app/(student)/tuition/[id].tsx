@@ -2,6 +2,7 @@ import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants
 import { useAuthStore } from '@/store/authStore';
 import { useStudentStore } from '@/store/studentStore';
 import { generateTuitionPDF } from '@/utils/pdf';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -233,7 +234,7 @@ export default function StudentTuitionDetail() {
               homeworkList.map((hw, idx) => (
                 <View key={hw.id}>
                   {idx > 0 && <Divider style={{ marginVertical: Spacing.sm }} />}
-                  <TouchableOpacity onPress={() => setViewingHwId(hw.id)} activeOpacity={0.7}>
+                  <TouchableOpacity onPress={() => setViewingHwId(hw.id)} activeOpacity={0.7} style={styles.hwItem}>
                     <View style={styles.hwRow}>
                       <View style={{ flex: 1 }}>
                         <Text
@@ -243,24 +244,30 @@ export default function StudentTuitionDetail() {
                             hw.completed && styles.strikethrough,
                           ]}
                         >
-                          {hw.subject} • {hw.chapter}
+                          {hw.subject}
                         </Text>
                         <Text variant="bodySmall" style={styles.hwTask}>
-                          {hw.task}
+                          Chapter: {hw.chapter}
                         </Text>
-                        <Text variant="bodySmall" style={styles.hwDue}>
-                          Due: {formatDate(hw.dueDate)}
+                        <Text variant="bodySmall" style={styles.hwTask}>
+                          Task: {hw.task}
                         </Text>
-                        {hw.notes && (
-                          <Text variant="bodySmall" style={styles.hwNotes}>
-                            📝 {hw.notes}
-                          </Text>
-                        )}
-                        {hw.comments.length > 0 && (
-                          <Text variant="bodySmall" style={styles.hwComments}>
-                            💬 {hw.comments.length} comment{hw.comments.length > 1 ? 's' : ''}
-                          </Text>
-                        )}
+                        <View style={styles.hwMetaRow}>
+                          <View style={styles.hwMetaItem}>
+                            <MaterialCommunityIcons name="calendar-clock" size={14} color={Colors.warning} />
+                            <Text variant="bodySmall" style={styles.hwDue}>
+                              {formatDate(hw.dueDate)}
+                            </Text>
+                          </View>
+                          {hw.comments.length > 0 && (
+                            <View style={styles.hwMetaItem}>
+                              <MaterialCommunityIcons name="comment-multiple" size={14} color={Colors.info} />
+                              <Text variant="bodySmall" style={styles.hwComments}>
+                                {hw.comments.length}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
                       <View style={styles.hwActions}>
                         {hw.completed ? (
@@ -514,12 +521,21 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     fontFamily: FontFamily.regular,
   },
-  hwRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Spacing.xs },
+  hwItem: {
+    backgroundColor: Colors.surfaceVariant + '40',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border + '60',
+  },
+  hwRow: { flexDirection: 'row', alignItems: 'flex-start' },
   hwChapter: { fontFamily: FontFamily.semibold, color: Colors.textPrimary },
   hwTask: { color: Colors.textSecondary, marginTop: 2, fontFamily: FontFamily.regular },
-  hwDue: { color: Colors.warning, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  hwMetaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: 4 },
+  hwMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  hwDue: { color: Colors.warning, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   hwNotes: { color: Colors.info, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular, fontStyle: 'italic' },
-  hwComments: { color: Colors.primary, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  hwComments: { color: Colors.primary, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   hwActions: { flexDirection: 'row', alignItems: 'center' },
   strikethrough: { textDecorationLine: 'line-through', color: Colors.textTertiary },
   doneChip: { backgroundColor: Colors.successLight, height: 28, alignSelf: 'flex-start' },

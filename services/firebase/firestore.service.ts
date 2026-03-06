@@ -120,9 +120,12 @@ export class FirestoreService {
       await firestore()
         .collection(COLLECTIONS.TUITIONS)
         .doc(tuitionId)
-        .update(data);
+        .update(removeUndefined(data));
     } catch (error) {
       console.error("Update tuition error:", error);
+      if (error instanceof Error) {
+        throw new Error(`Failed to update tuition: ${error.message}`);
+      }
       throw new Error("Failed to update tuition");
     }
   }
@@ -370,7 +373,7 @@ export class FirestoreService {
       await firestore()
         .collection(COLLECTIONS.HOMEWORK)
         .doc(homeworkId)
-        .update(data);
+        .update(removeUndefined(data));
     } catch (error) {
       console.error("Update homework error:", error);
       throw new Error("Failed to update homework");
@@ -489,6 +492,15 @@ export class FirestoreService {
     notes?: string,
   ): Promise<void> {
     try {
+      console.log("updatePaymentStatus called with:", {
+        tuitionId,
+        teacherId,
+        studentId,
+        month,
+        status,
+        amount,
+      });
+
       // Check if payment record exists for this month
       const existingPayment = await firestore()
         .collection(COLLECTIONS.PAYMENT_HISTORY)
@@ -497,20 +509,26 @@ export class FirestoreService {
         .limit(1)
         .get();
 
+      console.log("Existing payment query result:", existingPayment.size);
+
       const now = new Date().toISOString();
 
       if (!existingPayment.empty) {
         // Update existing record
+        console.log("Updating existing payment record");
         const paymentDoc = existingPayment.docs[0];
-        await paymentDoc.ref.update({
-          status,
-          amount,
-          notes,
-          paidAt: status === "paid" ? now : null,
-          updatedAt: now,
-        });
+        await paymentDoc.ref.update(
+          removeUndefined({
+            status,
+            amount,
+            notes,
+            paidAt: status === "paid" ? now : null,
+            updatedAt: now,
+          }),
+        );
       } else {
         // Create new payment record
+        console.log("Creating new payment record");
         const paymentRef = firestore()
           .collection(COLLECTIONS.PAYMENT_HISTORY)
           .doc();
@@ -530,17 +548,24 @@ export class FirestoreService {
         await paymentRef.set(removeUndefined(payment));
       }
 
+      console.log("Updating tuition payment status");
       // Update tuition payment status
       await this.updateTuition(tuitionId, { paymentStatus: status });
 
+      console.log("Adding activity log");
       // Add activity log
       await this.addActivityLog(
         tuitionId,
         "payment_updated",
         `Payment ${status} for ${month}`,
       );
+
+      console.log("Payment status updated successfully");
     } catch (error) {
       console.error("Update payment status error:", error);
+      if (error instanceof Error) {
+        throw new Error(`Failed to update payment status: ${error.message}`);
+      }
       throw new Error("Failed to update payment status");
     }
   }
@@ -684,12 +709,7 @@ export class FirestoreService {
       const inviteDoc = invitations.docs[0];
       const invitation = inviteDoc.data() as Invitation;
 
-      // Check if already used
-      if (invitation.usedBy) {
-        throw new Error("This invitation code has already been used");
-      }
-
-      // Get the tuition
+      // Get the tuition first to check enrollment status
       const tuitionDoc = await firestore()
         .collection(COLLECTIONS.TUITIONS)
         .doc(invitation.tuitionId)
@@ -701,8 +721,20 @@ export class FirestoreService {
 
       const tuition = tuitionDoc.data() as Tuition;
 
-      // Check if already has a student
-      if (tuition.studentId) {
+      // Check if this student is already enrolled
+      if (tuition.studentId === studentId) {
+        throw new Error("You are already enrolled in this tuition");
+      }
+
+      // Check if invitation was used by someone else
+      if (invitation.usedBy && invitation.usedBy !== studentId) {
+        throw new Error(
+          "This invitation code has already been used by another student",
+        );
+      }
+
+      // Check if tuition already has a different student
+      if (tuition.studentId && tuition.studentId !== studentId) {
         throw new Error("This tuition already has a student enrolled");
       }
 
@@ -722,7 +754,12 @@ export class FirestoreService {
       return { ...tuition, studentId, studentName, studentEmail };
     } catch (error: any) {
       console.error("Join tuition error:", error);
-      throw new Error(error.message || "Failed to join tuition");
+      // If it's already an Error with our custom message, rethrow it
+      if (error instanceof Error) {
+        throw error;
+      }
+      // Otherwise, wrap unknown errors
+      throw new Error("Failed to join tuition");
     }
   }
 }

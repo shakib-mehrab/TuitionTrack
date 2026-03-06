@@ -1,5 +1,5 @@
-import { Alert } from "react-native";
 import type { ClassLog, Homework, Tuition } from "@/types";
+import { Alert } from "react-native";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -45,6 +45,12 @@ export async function generateTuitionPDF(
     month: "long",
     year: "numeric",
   });
+
+  // Generate filename: StudentName_TuitionRecord_MonthYear.pdf
+  const studentName = (tuition.studentName || "Student").replace(/\s+/g, "_");
+  const monthName = new Date().toLocaleString("default", { month: "long" });
+  const year = new Date().getFullYear();
+  const filename = `${studentName}_TuitionRecord_${monthName}${year}.pdf`;
 
   const classRows = classLogs
     .map((log, i) => {
@@ -343,14 +349,356 @@ export async function generateTuitionPDF(
     if (canShare) {
       await Sharing.shareAsync(uri, {
         mimeType: "application/pdf",
-        dialogTitle: `${tuition.subject} — ${tuition.studentName ?? "Tuition"} Report`,
+        dialogTitle: filename,
         UTI: "com.adobe.pdf",
       });
     }
   } catch {
     Alert.alert(
       "PDF Not Available",
-      "PDF generation requires a development build. Run `expo run:android` or `expo run:ios` to enable this feature."
+      "PDF generation requires a development build. Run `expo run:android` or `expo run:ios` to enable this feature.",
+    );
+  }
+}
+
+export async function generatePaymentReceipt(
+  tuition: Tuition,
+  classCount: number,
+  planned: number,
+  teacherName: string,
+  month: string,
+): Promise<void> {
+  const remaining = Math.max(planned - classCount, 0);
+  const paymentStatusLabel = paymentLabel(tuition.paymentStatus);
+  const paymentStatusColor = paymentColor(tuition.paymentStatus);
+  const receiptDate = new Date().toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const monthLabel = new Date(month + "-01").toLocaleString("default", {
+    month: "long",
+    year: "numeric",
+  });
+
+  // Generate filename: StudentName_Payment_MonthYear.pdf
+  const studentName = (tuition.studentName || "Student").replace(/\s+/g, "_");
+  const monthName = new Date(month + "-01").toLocaleString("default", {
+    month: "long",
+  });
+  const year = new Date(month + "-01").getFullYear();
+  const filename = `${studentName}_Payment_${monthName}${year}.pdf`;
+
+  const amountPaid =
+    tuition.paymentStatus === "paid"
+      ? tuition.salary || 0
+      : tuition.paymentStatus === "partial"
+        ? Math.floor((tuition.salary || 0) / 2)
+        : 0;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Payment Receipt — ${tuition.subject}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #FFFFFF;
+      --surface:  #F8FAFC;
+      --border:   #E2E8F0;
+      --primary:  #7C3AED;
+      --accent:   #22D3EE;
+      --text:     #1E293B;
+      --muted:    #64748B;
+      --success:  #10B981;
+      --warning:  #F59E0B;
+    }
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 15px 10px;
+    }
+    .container {
+      max-width: 650px;
+      margin: 0 auto;
+      background: white;
+      border: 2px solid var(--border);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .header {
+      background: linear-gradient(135deg, #7C3AED 0%, #22D3EE 100%);
+      padding: 18px 24px;
+      text-align: center;
+      border-bottom: 3px solid var(--primary);
+    }
+    .header-title {
+      font-size: 26px;
+      font-weight: 700;
+      color: white;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .header-subtitle {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 400;
+      font-style: italic;
+    }
+    .memo-header {
+      background: var(--surface);
+      padding: 12px 24px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .memo-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+    .memo-label {
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 11px;
+    }
+    .memo-value {
+      color: var(--text);
+      font-weight: 500;
+    }
+    .content {
+      padding: 18px 24px;
+    }
+    .receipt-title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+    }
+    .info-table {
+      width: 100%;
+      margin-bottom: 16px;
+    }
+    .info-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-row:last-child {
+      border-bottom: 2px solid var(--primary);
+    }
+    .info-label {
+      flex: 0 0 40%;
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.3px;
+    }
+    .info-value {
+      flex: 1;
+      font-weight: 500;
+      color: var(--text);
+      text-align: right;
+    }
+    .amount-box {
+      background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+      border: 2px solid var(--success);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+      margin: 16px 0;
+    }
+    .amount-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+    .amount-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--success);
+      letter-spacing: 1px;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .signature-section {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--border);
+    }
+    .signature-box {
+      text-align: right;
+    }
+    .signature-line {
+      border-top: 2px solid var(--text);
+      width: 180px;
+      margin: 30px 0 6px auto;
+    }
+    .signature-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .signature-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-top: 3px;
+    }
+    .footer {
+      background: var(--surface);
+      padding: 12px 24px;
+      text-align: center;
+      border-top: 1px solid var(--border);
+    }
+    .footer-note {
+      font-size: 10px;
+      color: var(--muted);
+      font-style: italic;
+      line-height: 1.5;
+    }
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 80px;
+      color: rgba(124, 58, 237, 0.02);
+      font-weight: 900;
+      pointer-events: none;
+      z-index: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="watermark">TuitionTrack</div>
+  
+  <div class="container">
+    <div class="header">
+      <div class="header-title">Payment Receipt</div>
+      <div class="header-subtitle">TuitionTrack Professional Services</div>
+    </div>
+
+    <div class="memo-header">
+      <div class="memo-row">
+        <span class="memo-label">Receipt No:</span>
+        <span class="memo-value">RCP-${Date.now().toString().slice(-8)}</span>
+      </div>
+      <div class="memo-row">
+        <span class="memo-label">Date:</span>
+        <span class="memo-value">${receiptDate}</span>
+      </div>
+      <div class="memo-row">
+        <span class="memo-label">Period:</span>
+        <span class="memo-value">${monthLabel}</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="receipt-title">Payment Details</div>
+
+      <div class="info-table">
+        <div class="info-row">
+          <div class="info-label">Student Name</div>
+          <div class="info-value">${tuition.studentName || "N/A"}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Subject</div>
+          <div class="info-value">${tuition.subject}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Class Schedule</div>
+          <div class="info-value">${tuition.schedule} • ${tuition.startTime} – ${tuition.endTime}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Planned Classes</div>
+          <div class="info-value">${planned} classes</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Classes Taken</div>
+          <div class="info-value">${classCount} classes</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Classes Remaining</div>
+          <div class="info-value">${remaining} classes</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Payment Status</div>
+          <div class="info-value">
+            <span class="status-badge" style="background:${paymentStatusColor}22;color:${paymentStatusColor};border:1.5px solid ${paymentStatusColor}">
+              ${paymentStatusLabel}
+            </span>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Monthly Fee</div>
+          <div class="info-value">৳${(tuition.salary || 0).toLocaleString("en-IN")}</div>
+        </div>
+      </div>
+
+      <div class="amount-box">
+        <div class="amount-label">Amount Paid</div>
+        <div class="amount-value">৳${amountPaid.toLocaleString("en-IN")}</div>
+      </div>
+
+      <div class="signature-section">
+        <div class="signature-box">
+          <div class="signature-line"></div>
+          <div class="signature-label">Authorized Signature</div>
+          <div class="signature-name">${teacherName}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="footer-note">
+        This is a computer-generated receipt and does not require a physical signature.<br/>
+        For any queries, please contact your tutor directly.<br/>
+        Generated by <strong>TuitionTrack</strong> on ${receiptDate}
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>`;
+
+  try {
+    const Print = await import("expo-print");
+    const Sharing = await import("expo-sharing");
+
+    const { uri } = await Print.printToFileAsync({ html, base64: false });
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(uri, {
+        mimeType: "application/pdf",
+        dialogTitle: filename,
+        UTI: "com.adobe.pdf",
+      });
+    }
+  } catch {
+    Alert.alert(
+      "PDF Not Available",
+      "PDF generation requires a development build. Run `expo run:android` or `expo run:ios` to enable this feature.",
     );
   }
 }
