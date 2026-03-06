@@ -1,18 +1,20 @@
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/Colors';
 import { useAuthStore } from '@/store/authStore';
-import { useTeacherStore } from '@/store/teacherStore';
+import { useStudentStore } from '@/store/studentStore';
 import type { Homework } from '@/types';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import {
-  Appbar,
-  Button,
-  Card,
-  Chip,
-  Divider,
-  Text,
-  TextInput,
+    Appbar,
+    Button,
+    Card,
+    Chip,
+    Divider,
+    IconButton,
+    Menu,
+    Text,
+    TextInput,
 } from 'react-native-paper';
 
 type Filter = 'all' | 'pending' | 'done';
@@ -37,14 +39,17 @@ function HomeworkCard({
   userId,
   userName,
   onAddComment,
+  onToggleComplete,
 }: {
   hw: Homework;
   userId: string;
   userName: string;
   onAddComment: (hwId: string, text: string) => void;
+  onToggleComplete: (hwId: string, currentStatus: boolean) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const isOverdue = !hw.completed && new Date(hw.dueDate) < new Date();
   const daysLeft = Math.ceil((new Date(hw.dueDate).getTime() - Date.now()) / 86400000);
@@ -71,26 +76,48 @@ function HomeworkCard({
               {hw.task}
             </Text>
           </View>
-          {hw.completed ? (
-            <Chip
-              icon="check-circle"
-              style={styles.doneChip}
-              textStyle={{ color: Colors.success, fontSize: FontSize.xs, fontFamily: FontFamily.semibold }}
+          <View style={styles.headerActions}>
+            {hw.completed ? (
+              <Chip
+                icon="check-circle"
+                style={styles.doneChip}
+                textStyle={{ color: Colors.success, fontSize: FontSize.xs, fontFamily: FontFamily.semibold }}
+              >
+                Done
+              </Chip>
+            ) : (
+              <Chip
+                style={[styles.dueChip, isOverdue && styles.overdueChip]}
+                textStyle={{
+                  color: isOverdue ? Colors.error : Colors.warning,
+                  fontSize: FontSize.xs,
+                  fontFamily: FontFamily.medium,
+                }}
+              >
+                {isOverdue ? 'Overdue' : daysLeft >= 0 ? `${daysLeft}d left` : ''}
+              </Chip>
+            )}
+            <Menu
+              visible={menuVisible}
+              onDismiss={() => setMenuVisible(false)}
+              anchor={
+                <IconButton
+                  icon="dots-vertical"
+                  size={20}
+                  onPress={() => setMenuVisible(true)}
+                />
+              }
             >
-              Done
-            </Chip>
-          ) : (
-            <Chip
-              style={[styles.dueChip, isOverdue && styles.overdueChip]}
-              textStyle={{
-                color: isOverdue ? Colors.error : Colors.warning,
-                fontSize: FontSize.xs,
-                fontFamily: FontFamily.medium,
-              }}
-            >
-              {isOverdue ? 'Overdue' : daysLeft >= 0 ? `${daysLeft}d left` : ''}
-            </Chip>
-          )}
+              <Menu.Item
+                onPress={() => {
+                  onToggleComplete(hw.id, hw.completed);
+                  setMenuVisible(false);
+                }}
+                title={hw.completed ? 'Mark as Pending' : 'Mark as Done'}
+                leadingIcon={hw.completed ? 'checkbox-blank-circle-outline' : 'check-circle'}
+              />
+            </Menu>
+          </View>
         </View>
 
         <Text variant="bodySmall" style={styles.dueDate}>
@@ -176,11 +203,11 @@ function HomeworkCard({
 export default function StudentHomeworkScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { tuitions, getHomeworkForTuition, addComment } = useTeacherStore();
+  const { tuitions, getHomeworkForTuition, addComment, markHomeworkComplete } = useStudentStore();
 
   const [filter, setFilter] = useState<Filter>('all');
 
-  const myTuitions = tuitions.filter((t) => t.studentId === user?.id);
+  const myTuitions = tuitions;
   const allHomework: Homework[] = myTuitions.flatMap((t) => getHomeworkForTuition(t.id));
 
   const filtered =
@@ -199,6 +226,14 @@ export default function StudentHomeworkScreen() {
       role: 'student',
       text,
     });
+  };
+
+  const handleToggleComplete = async (hwId: string, currentStatus: boolean) => {
+    try {
+      await markHomeworkComplete(hwId, !currentStatus);
+    } catch (error) {
+      console.error('Failed to toggle homework status:', error);
+    }
   };
 
   return (
@@ -248,6 +283,7 @@ export default function StudentHomeworkScreen() {
             userId={user?.id ?? ''}
             userName={user?.name ?? 'Student'}
             onAddComment={handleAddComment}
+            onToggleComplete={handleToggleComplete}
           />
         )}
       />
@@ -285,6 +321,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   hwHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.xs },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   subjectTag: {
     backgroundColor: Colors.primaryMuted,
     paddingHorizontal: Spacing.sm,

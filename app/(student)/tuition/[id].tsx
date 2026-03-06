@@ -1,17 +1,23 @@
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/Colors';
-import { useTeacherStore } from '@/store/teacherStore';
+import { useAuthStore } from '@/store/authStore';
+import { useStudentStore } from '@/store/studentStore';
 import { generateTuitionPDF } from '@/utils/pdf';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
     Appbar,
+    Button,
     Card,
     Chip,
+    Dialog,
     Divider,
+    IconButton,
+    Portal,
     ProgressBar,
     Snackbar,
     Text,
+    TextInput,
 } from 'react-native-paper';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -48,14 +54,20 @@ function paymentLabel(status: string) {
 export default function StudentTuitionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuthStore();
   const {
     getTuitionById,
     getLogsForTuition,
     getHomeworkForTuition,
     getClassCountForMonth,
-  } = useTeacherStore();
+    markHomeworkComplete,
+    addComment,
+  } = useStudentStore();
 
   const [snackMsg, setSnackMsg] = useState('');
+  const [viewingHwId, setViewingHwId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   const tuition = getTuitionById(id);
 
@@ -74,11 +86,46 @@ export default function StudentTuitionDetail() {
   const progress = Math.min(classCount / planned, 1);
   const remaining = Math.max(planned - classCount, 0);
 
+  // Get the current homework being viewed (reactively updates when homework changes)
+  const viewingHw = useMemo(() => {
+    if (!viewingHwId) return null;
+    return homeworkList.find(hw => hw.id === viewingHwId) || null;
+  }, [viewingHwId, homeworkList]);
+
   const handleDownloadPDF = async () => {
     try {
       await generateTuitionPDF(tuition, logs, homeworkList, classCount, planned);
     } catch {
       setSnackMsg('Failed to generate PDF');
+    }
+  };
+
+  const handleToggleComplete = async (hwId: string, currentStatus: boolean) => {
+    try {
+      await markHomeworkComplete(hwId, !currentStatus);
+      setSnackMsg(currentStatus ? 'Homework marked as pending' : 'Homework marked as complete');
+    } catch (error) {
+      setSnackMsg('Failed to update homework status');
+    }
+  };
+
+  const handleAddComment = async (hwId: string, userId: string, userName: string) => {
+    if (!commentText.trim()) return;
+    
+    setIsSending(true);
+    try {
+      await addComment(hwId, {
+        userId,
+        userName,
+        role: 'student',
+        text: commentText.trim(),
+      });
+      setCommentText('');
+      setSnackMsg('Comment added');
+    } catch (error) {
+      setSnackMsg('Failed to add comment');
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -174,7 +221,7 @@ export default function StudentTuitionDetail() {
           </Card.Content>
         </Card>
 
-        {/* Homework (read-only) */}
+        {/* Homework (Interactive) */}
         <Card style={[styles.card, { marginBottom: Spacing['2xl'] }]} mode="elevated">
           <Card.Content>
             <Text variant="titleSmall" style={styles.cardTitle}>
@@ -186,66 +233,197 @@ export default function StudentTuitionDetail() {
               homeworkList.map((hw, idx) => (
                 <View key={hw.id}>
                   {idx > 0 && <Divider style={{ marginVertical: Spacing.sm }} />}
-                  <View style={styles.hwRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        variant="bodyMedium"
-                        style={[
-                          styles.hwChapter,
-                          hw.completed && styles.strikethrough,
-                        ]}
-                      >
-                        {hw.chapter}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.hwTask}>
-                        {hw.task}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.hwDue}>
-                        Due: {formatDate(hw.dueDate)}
-                      </Text>
-                      {hw.notes && (
-                        <Text variant="bodySmall" style={styles.hwNotes}>
-                          Note: {hw.notes}
-                        </Text>
-                      )}
-                    </View>
-                    {hw.completed && (
-                      <Chip
-                        style={styles.doneChip}
-                        textStyle={{ color: Colors.success, fontSize: FontSize.xs, fontFamily: FontFamily.semibold }}
-                        icon="check-circle"
-                      >
-                        Done
-                      </Chip>
-                    )}
-                  </View>
-
-                  {/* Comments (read-only) */}
-                  {hw.comments.length > 0 && (
-                    <View style={styles.commentsBlock}>
-                      {hw.comments.map((c) => (
-                        <View
-                          key={c.id}
+                  <TouchableOpacity onPress={() => setViewingHwId(hw.id)} activeOpacity={0.7}>
+                    <View style={styles.hwRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          variant="bodyMedium"
                           style={[
-                            styles.comment,
-                            c.role === 'teacher'
-                              ? styles.teacherComment
-                              : styles.studentComment,
+                            styles.hwChapter,
+                            hw.completed && styles.strikethrough,
                           ]}
                         >
-                          <Text style={styles.commentName}>{c.userName}</Text>
-                          <Text style={styles.commentText}>{c.text}</Text>
-                          <Text style={styles.commentTime}>{formatTime(c.timestamp)}</Text>
-                        </View>
-                      ))}
+                          {hw.subject} • {hw.chapter}
+                        </Text>
+                        <Text variant="bodySmall" style={styles.hwTask}>
+                          {hw.task}
+                        </Text>
+                        <Text variant="bodySmall" style={styles.hwDue}>
+                          Due: {formatDate(hw.dueDate)}
+                        </Text>
+                        {hw.notes && (
+                          <Text variant="bodySmall" style={styles.hwNotes}>
+                            📝 {hw.notes}
+                          </Text>
+                        )}
+                        {hw.comments.length > 0 && (
+                          <Text variant="bodySmall" style={styles.hwComments}>
+                            💬 {hw.comments.length} comment{hw.comments.length > 1 ? 's' : ''}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={styles.hwActions}>
+                        {hw.completed ? (
+                          <Chip
+                            style={styles.doneChip}
+                            textStyle={{ color: Colors.success, fontSize: FontSize.xs, fontFamily: FontFamily.semibold }}
+                            icon="check-circle"
+                          >
+                            Done
+                          </Chip>
+                        ) : null}
+                        <IconButton
+                          icon={hw.completed ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
+                          iconColor={hw.completed ? Colors.success : Colors.textSecondary}
+                          size={20}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleToggleComplete(hw.id, hw.completed);
+                          }}
+                        />
+                      </View>
                     </View>
-                  )}
+                  </TouchableOpacity>
                 </View>
               ))
             )}
           </Card.Content>
         </Card>
       </ScrollView>
+
+      <Portal>
+        {/* Homework Details Dialog */}
+        <Dialog 
+          visible={!!viewingHw} 
+          onDismiss={() => {
+            setViewingHwId(null);
+            setCommentText('');
+          }} 
+          style={styles.dialog}
+        >
+          <Dialog.Title>{viewingHw?.subject} • {viewingHw?.chapter}</Dialog.Title>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+          >
+            <Dialog.ScrollArea>
+              <ScrollView 
+                contentContainerStyle={{ padding: Spacing.md }} 
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                alwaysBounceVertical={false}
+              >
+              {viewingHw && (
+                <>
+                  <View style={styles.hwDetailRow}>
+                    <Text style={styles.hwDetailLabel}>Task</Text>
+                    <Text style={styles.hwDetailValue}>{viewingHw.task}</Text>
+                  </View>
+                  <View style={styles.hwDetailRow}>
+                    <Text style={styles.hwDetailLabel}>Due Date</Text>
+                    <Text style={styles.hwDetailValue}>{formatDate(viewingHw.dueDate)}</Text>
+                  </View>
+                  {viewingHw.notes && (
+                    <View style={styles.hwDetailRow}>
+                      <Text style={styles.hwDetailLabel}>Teacher Notes</Text>
+                      <Text style={styles.hwDetailValue}>{viewingHw.notes}</Text>
+                    </View>
+                  )}
+                  <View style={styles.hwDetailRow}>
+                    <Text style={styles.hwDetailLabel}>Status</Text>
+                    <Chip
+                      icon={viewingHw.completed ? 'check-circle' : 'clock-outline'}
+                      style={{ 
+                        backgroundColor: viewingHw.completed ? Colors.success + '22' : Colors.warning + '22', 
+                        alignSelf: 'flex-start' 
+                      }}
+                      textStyle={{ color: viewingHw.completed ? Colors.success : Colors.warning }}
+                    >
+                      {viewingHw.completed ? 'Completed' : 'Pending'}
+                    </Chip>
+                  </View>
+                  
+                  <Divider style={{ marginVertical: Spacing.md }} />
+                  
+                  <Text variant="titleSmall" style={{ fontFamily: FontFamily.semibold, marginBottom: Spacing.sm }}>
+                    Comments ({viewingHw.comments.length})
+                  </Text>
+                  
+                  {viewingHw.comments.length === 0 ? (
+                    <Text style={{ color: Colors.textSecondary, fontStyle: 'italic', marginBottom: Spacing.sm }}>
+                      No comments yet. Add one below!
+                    </Text>
+                  ) : (
+                    <View style={{ marginBottom: Spacing.sm }}>
+                      {viewingHw.comments.map((comment: any) => (
+                        <View 
+                          key={comment.id} 
+                          style={[
+                            styles.commentBox,
+                            comment.role === 'teacher' ? styles.teacherComment : styles.studentComment
+                          ]}
+                        >
+                          <View style={styles.commentHeader}>
+                            <Text style={styles.commentAuthor}>
+                              {comment.userName} {comment.role === 'teacher' ? '(Teacher)' : ''}
+                            </Text>
+                            <Text style={styles.commentTime2}>{formatTime(comment.timestamp)}</Text>
+                          </View>
+                          <Text style={styles.commentText2}>{comment.text}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Add Comment */}
+                  <View style={styles.addCommentRow}>
+                    <TextInput
+                      mode="outlined"
+                      placeholder="Add a comment..."
+                      value={commentText}
+                      onChangeText={setCommentText}
+                      multiline
+                      dense
+                      style={styles.commentInput}
+                      disabled={isSending}
+                    />
+                    <Button
+                      mode="contained"
+                      onPress={() => handleAddComment(viewingHw.id, user?.id ?? '', user?.name ?? 'Student')}
+                      disabled={!commentText.trim() || isSending}
+                      loading={isSending}
+                      compact
+                    >
+                      Send
+                    </Button>
+                  </View>
+                </>
+              )}
+              </ScrollView>
+            </Dialog.ScrollArea>
+          </KeyboardAvoidingView>
+          <Dialog.Actions>
+            <Button onPress={() => {
+              setViewingHwId(null);
+              setCommentText('');
+            }}>
+              Close
+            </Button>
+            <Button 
+              mode="contained" 
+              icon={viewingHw?.completed ? 'checkbox-blank-circle-outline' : 'check-circle'}
+              onPress={() => {
+                if (viewingHw) {
+                  handleToggleComplete(viewingHw.id, viewingHw.completed);
+                }
+              }}
+            >
+              Mark as {viewingHw?.completed ? 'Pending' : 'Done'}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       <Snackbar
         visible={!!snackMsg}
@@ -340,7 +518,9 @@ const styles = StyleSheet.create({
   hwChapter: { fontFamily: FontFamily.semibold, color: Colors.textPrimary },
   hwTask: { color: Colors.textSecondary, marginTop: 2, fontFamily: FontFamily.regular },
   hwDue: { color: Colors.warning, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
-  hwNotes: { color: Colors.info, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  hwNotes: { color: Colors.info, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular, fontStyle: 'italic' },
+  hwComments: { color: Colors.primary, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  hwActions: { flexDirection: 'row', alignItems: 'center' },
   strikethrough: { textDecorationLine: 'line-through', color: Colors.textTertiary },
   doneChip: { backgroundColor: Colors.successLight, height: 28, alignSelf: 'flex-start' },
   commentsBlock: { marginTop: Spacing.sm, gap: Spacing.xs },
@@ -354,4 +534,26 @@ const styles = StyleSheet.create({
   commentName: { fontSize: FontSize.xs, fontFamily: FontFamily.semibold, color: Colors.textSecondary, marginBottom: 2 },
   commentText: { fontSize: FontSize.sm, color: Colors.textPrimary, fontFamily: FontFamily.regular },
   commentTime: { fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2, textAlign: 'right', fontFamily: FontFamily.regular },
+  dialog: { maxHeight: '80%' },
+  hwDetailRow: { marginBottom: Spacing.md },
+  hwDetailLabel: { 
+    fontSize: FontSize.xs, 
+    color: Colors.textTertiary, 
+    fontFamily: FontFamily.semibold, 
+    textTransform: 'uppercase', 
+    marginBottom: 4 
+  },
+  hwDetailValue: { fontSize: FontSize.sm, color: Colors.textPrimary, fontFamily: FontFamily.regular },
+  commentBox: { 
+    backgroundColor: Colors.surfaceVariant, 
+    padding: Spacing.sm, 
+    borderRadius: BorderRadius.md, 
+    marginBottom: Spacing.xs 
+  },
+  commentHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  commentAuthor: { fontSize: FontSize.xs, fontFamily: FontFamily.semibold, color: Colors.primary },
+  commentTime2: { fontSize: FontSize.xs, fontFamily: FontFamily.regular, color: Colors.textTertiary },
+  commentText2: { fontSize: FontSize.sm, fontFamily: FontFamily.regular, color: Colors.textPrimary },
+  addCommentRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-end' },
+  commentInput: { flex: 1, backgroundColor: Colors.surface, fontSize: FontSize.sm },
 });
