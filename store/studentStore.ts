@@ -4,13 +4,12 @@ import type {
     ClassLog,
     Homework,
     HomeworkComment,
-    PaymentStatus,
     Tuition,
 } from "@/types";
 import { create } from "zustand";
 
 // ─── Store Interface ────────────────────────────────────────────────
-interface TeacherState {
+interface StudentState {
   // Data
   tuitions: Tuition[];
   classLogs: ClassLog[];
@@ -22,31 +21,18 @@ interface TeacherState {
   isInitialized: boolean;
 
   // Initialize real-time listeners
-  initialize: (teacherId: string) => void;
+  initialize: (studentId: string) => void;
   cleanup: () => void;
 
-  // Tuition CRUD
-  addTuition: (data: Omit<Tuition, "id" | "createdAt">) => Promise<void>;
-  updateTuition: (id: string, data: Partial<Tuition>) => Promise<void>;
-  deleteTuition: (id: string) => Promise<void>;
-
-  // Class log CRUD
-  addClassLog: (tuitionId: string, date: string) => Promise<void>;
-  deleteClassLog: (logId: string, tuitionId: string) => Promise<void>;
-  resetClassLogs: (tuitionId: string) => Promise<void>;
-
-  // Payment
-  updatePaymentStatus: (
-    tuitionId: string,
-    status: PaymentStatus,
+  // Join tuition
+  joinTuition: (
+    code: string,
+    studentId: string,
+    studentName: string,
+    studentEmail: string,
   ) => Promise<void>;
 
-  // Homework CRUD
-  addHomework: (
-    hw: Omit<Homework, "id" | "createdAt" | "completed" | "comments">,
-  ) => Promise<void>;
-  updateHomework: (id: string, data: Partial<Homework>) => Promise<void>;
-  deleteHomework: (id: string) => Promise<void>;
+  // Homework
   markHomeworkComplete: (id: string, completed: boolean) => Promise<void>;
   addComment: (
     homeworkId: string,
@@ -59,9 +45,6 @@ interface TeacherState {
   getActivityForTuition: (tuitionId: string) => ActivityLog[];
   getTuitionById: (id: string) => Tuition | undefined;
   getClassCountForMonth: (tuitionId: string, month: string) => number;
-
-  // Invitation
-  generateInviteCode: (tuitionId: string, teacherId: string) => Promise<string>;
 }
 
 // Unsubscribe functions for Firebase listeners
@@ -70,7 +53,7 @@ let unsubscribeClassLogs: Map<string, () => void> = new Map();
 let unsubscribeHomework: Map<string, () => void> = new Map();
 let unsubscribeActivity: Map<string, () => void> = new Map();
 
-export const useTeacherStore = create<TeacherState>((set, get) => ({
+export const useStudentStore = create<StudentState>((set, get) => ({
   tuitions: [],
   classLogs: [],
   activityLogs: [],
@@ -79,14 +62,14 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
   isInitialized: false,
 
   // ── Initialize Firebase Listeners ──
-  initialize: (teacherId: string) => {
+  initialize: (studentId: string) => {
     if (get().isInitialized) return;
 
     set({ isLoading: true, isInitialized: true });
 
-    // Subscribe to tuitions
-    unsubscribeTuitions = FirestoreService.subscribeToTeacherTuitions(
-      teacherId,
+    // Subscribe to tuitions where student is enrolled
+    unsubscribeTuitions = FirestoreService.subscribeToStudentTuitions(
+      studentId,
       (tuitions) => {
         set({ tuitions, isLoading: false });
 
@@ -174,125 +157,26 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
     });
   },
 
-  // ── Tuition ──
-  addTuition: async (data) => {
+  // ── Join Tuition ──
+  joinTuition: async (code, studentId, studentName, studentEmail) => {
     try {
       set({ isLoading: true });
-      await FirestoreService.createTuition(data);
+      await FirestoreService.joinTuitionWithCode(
+        code,
+        studentId,
+        studentName,
+        studentEmail,
+      );
       // Real-time listener will update the state
     } catch (error) {
-      console.error("Add tuition error:", error);
+      console.error("Join tuition error:", error);
       throw error;
     } finally {
       set({ isLoading: false });
-    }
-  },
-
-  updateTuition: async (id, data) => {
-    try {
-      await FirestoreService.updateTuition(id, data);
-      // Real-time listener will update the state
-    } catch (error) {
-      console.error("Update tuition error:", error);
-      throw error;
-    }
-  },
-
-  deleteTuition: async (id) => {
-    try {
-      set({ isLoading: true });
-
-      // Clean up listeners for this tuition
-      unsubscribeClassLogs.get(id)?.();
-      unsubscribeClassLogs.delete(id);
-      unsubscribeHomework.get(id)?.();
-      unsubscribeHomework.delete(id);
-      unsubscribeActivity.get(id)?.();
-      unsubscribeActivity.delete(id);
-
-      await FirestoreService.deleteTuition(id);
-      // Real-time listener will update the state
-    } catch (error) {
-      console.error("Delete tuition error:", error);
-      throw error;
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-
-  // ── Class Logs ──
-  addClassLog: async (tuitionId, date) => {
-    try {
-      await FirestoreService.addClassLog(tuitionId, date);
-      // Real-time listener will update the state
-    } catch (error) {
-      console.error("Add class log error:", error);
-      throw error;
-    }
-  },
-
-  deleteClassLog: async (logId, tuitionId) => {
-    try {
-      await FirestoreService.deleteClassLog(logId, tuitionId);
-      // Real-time listener will update the state
-    } catch (error) {
-      console.error("Delete class log error:", error);
-      throw error;
-    }
-  },
-
-  resetClassLogs: async (tuitionId) => {
-    try {
-      await FirestoreService.resetClassLogs(tuitionId);
-      // Real-time listener will update the state
-    } catch (error) {
-      console.error("Reset class logs error:", error);
-      throw error;
-    }
-  },
-
-  // ── Payment ──
-  updatePaymentStatus: async (tuitionId, status) => {
-    try {
-      await FirestoreService.updatePaymentStatus(tuitionId, status);
-      // Real-time listener will update the state
-    } catch (error) {
-      console.error("Update payment status error:", error);
-      throw error;
     }
   },
 
   // ── Homework ──
-  addHomework: async (data) => {
-    try {
-      await FirestoreService.createHomework(data);
-      // Real-time listener will update the state
-    } catch (error) {
-      console.error("Add homework error:", error);
-      throw error;
-    }
-  },
-
-  updateHomework: async (id, data) => {
-    try {
-      await FirestoreService.updateHomework(id, data);
-      // Real-time listener will update the state
-    } catch (error) {
-      console.error("Update homework error:", error);
-      throw error;
-    }
-  },
-
-  deleteHomework: async (id) => {
-    try {
-      await FirestoreService.deleteHomework(id);
-      // Real-time listener will update the state
-    } catch (error) {
-      console.error("Delete homework error:", error);
-      throw error;
-    }
-  },
-
   markHomeworkComplete: async (id, completed) => {
     try {
       await FirestoreService.updateHomework(id, { completed });
@@ -344,18 +228,4 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
     get().classLogs.filter(
       (l) => l.tuitionId === tuitionId && l.date.startsWith(month),
     ).length,
-
-  // ── Invitation ──
-  generateInviteCode: async (tuitionId, teacherId) => {
-    try {
-      const code = await FirestoreService.generateInvitationCode(
-        tuitionId,
-        teacherId,
-      );
-      return code;
-    } catch (error) {
-      console.error("Generate invite code error:", error);
-      throw error;
-    }
-  },
 }));

@@ -1,16 +1,22 @@
-import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/Colors';
+import { BorderRadius, Colors, FontFamily, FontSize, GlassDialog, GlassDialogTitle, Spacing } from '@/constants/Colors';
 import { useAuthStore } from '@/store/authStore';
-import { useTeacherStore } from '@/store/teacherStore';
+import { useStudentStore } from '@/store/studentStore';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import {
   Appbar,
   Button,
   Card,
+  Dialog,
+  FAB,
+  HelperText,
+  Portal,
   ProgressBar,
+  Snackbar,
   Surface,
   Text,
+  TextInput,
 } from 'react-native-paper';
 
 const currentMonth = new Date().toISOString().slice(0, 7);
@@ -30,13 +36,64 @@ function paymentLabel(status: string) {
 export default function StudentDashboard() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const { tuitions, getClassCountForMonth, getHomeworkForTuition } = useTeacherStore();
+  const { 
+    tuitions,
+    initialize,
+    cleanup,
+    joinTuition,
+    getClassCountForMonth, 
+    getHomeworkForTuition 
+  } = useStudentStore();
 
-  const myTuitions = tuitions.filter((t) => t.studentId === user?.id);
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+  const [snackMsg, setSnackMsg] = useState('');
+
+  // Initialize Firebase listeners
+  useEffect(() => {
+    if (user?.id) {
+      initialize(user.id);
+    }
+    
+    return () => {
+      cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const myTuitions = tuitions;
   const uniqueTeachers = new Set(myTuitions.map((t) => t.teacherId));
   const pendingHomework = myTuitions.reduce((sum, t) => {
     return sum + getHomeworkForTuition(t.id).filter((h) => !h.completed).length;
   }, 0);
+
+  const handleJoinTuition = async () => {
+    if (!inviteCode.trim()) {
+      setCodeError('Please enter an invite code');
+      return;
+    }
+
+    if (!user?.id || !user?.name || !user?.email) {
+      setCodeError('User information not available');
+      return;
+    }
+
+    setCodeError('');
+    setIsJoining(true);
+
+    try {
+      await joinTuition(inviteCode.trim(), user.id, user.name, user.email);
+      setShowJoinDialog(false);
+      setInviteCode('');
+      setSnackMsg('Successfully joined tuition!');
+    } catch (error: any) {
+      setCodeError(error.message || 'Failed to join tuition');
+    } finally {
+      setIsJoining(false);
+    }
+  };
 
   const ListHeader = () => (
     <>
@@ -150,6 +207,55 @@ export default function StudentDashboard() {
           );
         }}
       />
+
+      <FAB
+        icon="plus"
+        label="Join Tuition"
+        onPress={() => setShowJoinDialog(true)}
+        style={styles.fab}
+        color={Colors.textOnPrimary}
+      />
+
+      <Portal>
+        <Dialog visible={showJoinDialog} onDismiss={() => setShowJoinDialog(false)} style={GlassDialog}>
+          <Dialog.Title style={GlassDialogTitle}>Join Tuition</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ color: Colors.textSecondary, marginBottom: Spacing.md }}>
+              Enter the invite code provided by your teacher
+            </Text>
+            <TextInput
+              label="Invite Code"
+              value={inviteCode}
+              onChangeText={(text) => {
+                setInviteCode(text.toUpperCase());
+                setCodeError('');
+              }}
+              mode="outlined"
+              autoCapitalize="characters"
+              maxLength={6}
+              error={!!codeError}
+              disabled={isJoining}
+            />
+            {codeError ? <HelperText type="error" visible>{codeError}</HelperText> : null}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowJoinDialog(false)} disabled={isJoining}>
+              Cancel
+            </Button>
+            <Button mode="contained" onPress={handleJoinTuition} loading={isJoining} disabled={isJoining}>
+              Join
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      <Snackbar
+        visible={!!snackMsg}
+        onDismiss={() => setSnackMsg('')}
+        duration={3000}
+      >
+        {snackMsg}
+      </Snackbar>
     </View>
   );
 }
@@ -237,5 +343,11 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontFamily: FontFamily.regular,
     marginTop: Spacing['3xl'],
+  },
+  fab: {
+    position: 'absolute',
+    right: Spacing.lg,
+    bottom: Spacing.lg,
+    backgroundColor: Colors.primary,
   },
 });

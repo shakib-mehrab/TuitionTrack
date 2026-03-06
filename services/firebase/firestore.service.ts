@@ -36,8 +36,8 @@ export interface Invitation {
   teacherId: string;
   createdAt: string;
   expiresAt?: string;
-  usedBy?: string;
-  usedAt?: string;
+  usedBy?: string | null;
+  usedAt?: string | null;
 }
 
 /**
@@ -647,6 +647,8 @@ export class FirestoreService {
         tuitionId,
         teacherId,
         createdAt: new Date().toISOString(),
+        usedBy: null,
+        usedAt: null,
       };
 
       await inviteRef.set(invitation);
@@ -668,20 +670,24 @@ export class FirestoreService {
     studentEmail: string,
   ): Promise<Tuition> {
     try {
-      // Find invitation
+      // Find invitation by code only (avoid null query issues)
       const invitations = await firestore()
         .collection(COLLECTIONS.INVITATIONS)
         .where("code", "==", code.toUpperCase())
-        .where("usedBy", "==", null)
         .limit(1)
         .get();
 
       if (invitations.empty) {
-        throw new Error("Invalid or already used invitation code");
+        throw new Error("Invalid invitation code");
       }
 
       const inviteDoc = invitations.docs[0];
       const invitation = inviteDoc.data() as Invitation;
+
+      // Check if already used
+      if (invitation.usedBy) {
+        throw new Error("This invitation code has already been used");
+      }
 
       // Get the tuition
       const tuitionDoc = await firestore()

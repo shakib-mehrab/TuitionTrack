@@ -6,7 +6,7 @@ import type { Homework, PaymentStatus } from '@/types';
 import { generateTuitionPDF } from '@/utils/pdf';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Clipboard, ScrollView, Share, StyleSheet, View } from 'react-native';
 import {
     Appbar,
     Button,
@@ -73,6 +73,7 @@ export default function TuitionDetailScreen() {
     deleteHomework,
     markHomeworkComplete,
     updatePaymentStatus,
+    generateInviteCode,
   } = useTeacherStore();
 
   const tuition = getTuitionById(id);
@@ -99,6 +100,10 @@ export default function TuitionDetailScreen() {
   const [viewingHw, setViewingHw] = useState<Homework | null>(null);
   const [editingHw, setEditingHw] = useState<Homework | null>(null);
   const [deletingHw, setDeletingHw] = useState<Homework | null>(null);
+
+  // Invite code state
+  const [inviteCode, setInviteCode] = useState<string>('');
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
   if (!tuition) {
     return (
@@ -137,12 +142,31 @@ export default function TuitionDetailScreen() {
     }
   };
 
-  const inviteCode = `TT-${tuition.id.toUpperCase()}-${tuition.subject.replace(/\s+/g, '').slice(0, 4).toUpperCase()}`;
+  const handleGenerateInviteCode = async () => {
+    if (!user?.id || !tuition) return;
+    setIsGeneratingCode(true);
+    try {
+      const code = await generateInviteCode(tuition.id, user.id);
+      setInviteCode(code);
+      setDialogMode('inviteStudent');
+    } catch {
+      setSnackMsg('Failed to generate invite code');
+    } finally {
+      setIsGeneratingCode(false);
+    }
+  };
+
+  const handleCopyCode = () => {
+    if (!inviteCode) return;
+    Clipboard.setString(inviteCode);
+    setSnackMsg('Invite code copied to clipboard!');
+  };
 
   const handleInviteStudent = async () => {
+    if (!inviteCode) return;
     try {
       await Share.share({
-        message: `You have been invited to join TuitionTrack!\n\nSubject: ${tuition.subject}\nSchedule: ${tuition.schedule} | ${tuition.startTime} – ${tuition.endTime}\n\nUse this invite code when signing up:\n${inviteCode}`,
+        message: `You have been invited to join TuitionTrack!\n\nSubject: ${tuition.subject}\nSchedule: ${tuition.schedule} | ${tuition.startTime} – ${tuition.endTime}\n\nUse this invite code when joining:\n${inviteCode}`,
         title: `TuitionTrack — ${tuition.subject} Invite`,
       });
     } catch {
@@ -256,7 +280,8 @@ export default function TuitionDetailScreen() {
         <Appbar.Action
           icon="account-plus-outline"
           color={Colors.success}
-          onPress={() => setDialogMode('inviteStudent')}
+          onPress={handleGenerateInviteCode}
+          disabled={isGeneratingCode}
         />
         <Chip
           style={[styles.appbarBadge, { backgroundColor: paymentColor(tuition.paymentStatus) + '33' }]}
@@ -627,8 +652,18 @@ export default function TuitionDetailScreen() {
               <Text style={styles.inviteValue}>{tuition.schedule} · {tuition.startTime} – {tuition.endTime}</Text>
             </View>
             <View style={[styles.inviteBox, styles.inviteCodeBox]}>
-              <Text style={styles.inviteLabel}>Invite Code</Text>
-              <Text style={styles.inviteCode}>{inviteCode}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inviteLabel}>Invite Code</Text>
+                  <Text style={styles.inviteCode}>{inviteCode}</Text>
+                </View>
+                <IconButton
+                  icon="content-copy"
+                  iconColor={Colors.accent}
+                  size={20}
+                  onPress={handleCopyCode}
+                />
+              </View>
             </View>
           </Dialog.Content>
           <Dialog.Actions>
