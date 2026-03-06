@@ -1,9 +1,10 @@
+import { TimePickerInput } from '@/components/ui/DateTimePicker';
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/Colors';
 import { useAuthStore } from '@/store/authStore';
 import { useTeacherStore } from '@/store/teacherStore';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import {
     Appbar,
     Button,
@@ -30,6 +31,7 @@ export default function AddTuitionScreen() {
   const [studentEmail, setStudentEmail] = useState('');
   const [salary, setSalary] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toggleDay = (day: string) => {
     setSelectedDays((prev) =>
@@ -49,24 +51,32 @@ export default function AddTuitionScreen() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    const schedule = selectedDays.join(', ');
-    addTuition({
-      teacherId: user?.id ?? '',
-      subject: subject.trim(),
-      startTime: startTime.trim(),
-      endTime: endTime.trim(),
-      schedule,
-      datesPerWeek: selectedDays.length,
-      plannedClassesPerMonth: parseInt(plannedClasses, 10),
-      studentName: studentName.trim() || undefined,
-      studentEmail: studentEmail.trim() || undefined,
-      salary: salary.trim() ? parseFloat(salary) : undefined,
-      status: 'active',
-      paymentStatus: 'not_paid',
-    });
-    router.back();
+    
+    setIsSubmitting(true);
+    try {
+      const schedule = selectedDays.join(', ');
+      await addTuition({
+        teacherId: user?.id ?? '',
+        subject: subject.trim(),
+        startTime: startTime.trim(),
+        endTime: endTime.trim(),
+        schedule,
+        datesPerWeek: selectedDays.length,
+        plannedClassesPerMonth: parseInt(plannedClasses, 10),
+        studentName: studentName.trim() || undefined,
+        studentEmail: studentEmail.trim() || undefined,
+        salary: salary.trim() ? parseFloat(salary) : undefined,
+        status: 'active',
+        paymentStatus: 'not_paid',
+      });
+      router.back();
+    } catch (error) {
+      setErrors({ submit: 'Failed to create tuition. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -76,11 +86,16 @@ export default function AddTuitionScreen() {
         <Appbar.Content title="Add Tuition" titleStyle={styles.appbarTitle} />
       </Appbar.Header>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         {/* Subject */}
         <Text variant="labelLarge" style={styles.sectionLabel}>Subject *</Text>
         <TextInput
@@ -119,12 +134,10 @@ export default function AddTuitionScreen() {
         <Text variant="labelLarge" style={styles.sectionLabel}>Class Times *</Text>
         <View style={styles.timeRow}>
           <View style={{ flex: 1 }}>
-            <TextInput
-              mode="outlined"
+            <TimePickerInput
               label="Start Time"
-              placeholder="e.g. 5:00 PM"
               value={startTime}
-              onChangeText={setStartTime}
+              onChangeTime={setStartTime}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
               style={styles.input}
@@ -133,12 +146,10 @@ export default function AddTuitionScreen() {
           </View>
           <View style={{ width: Spacing.md }} />
           <View style={{ flex: 1 }}>
-            <TextInput
-              mode="outlined"
+            <TimePickerInput
               label="End Time"
-              placeholder="e.g. 6:00 PM"
               value={endTime}
-              onChangeText={setEndTime}
+              onChangeTime={setEndTime}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
               style={styles.input}
@@ -198,22 +209,28 @@ export default function AddTuitionScreen() {
           style={styles.input}
         />
 
+        {errors.submit && <HelperText type="error">{errors.submit}</HelperText>}
+
         <Button
           mode="contained"
           onPress={handleSubmit}
           style={styles.submitBtn}
           contentStyle={{ paddingVertical: Spacing.xs }}
           buttonColor={Colors.primary}
+          loading={isSubmitting}
+          disabled={isSubmitting}
         >
-          Create Tuition
+          {isSubmitting ? 'Creating Tuition...' : 'Create Tuition'}
         </Button>
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  keyboardView: { flex: 1 },
   appbar: { backgroundColor: Colors.backgroundDeep },
   appbarTitle: {
     color: Colors.textOnPrimary,

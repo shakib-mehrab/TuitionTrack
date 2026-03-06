@@ -4,8 +4,8 @@ import { useTeacherStore } from '@/store/teacherStore';
 import type { Tuition } from '@/types';
 import { generateTuitionPDF } from '@/utils/pdf';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import {
   Appbar,
   Button,
@@ -40,6 +40,10 @@ export default function TeacherDashboard() {
   const { user, logout } = useAuthStore();
   const {
     tuitions,
+    classLogs, // Subscribe to trigger re-renders when class logs change
+    isLoading,
+    initialize,
+    cleanup,
     addClassLog,
     deleteClassLog,
     resetClassLogs,
@@ -49,9 +53,24 @@ export default function TeacherDashboard() {
     getHomeworkForTuition,
   } = useTeacherStore();
 
+  // Prevent ESLint warning - classLogs is used for subscription
+  void classLogs;
+
   const [dialogType, setDialogType] = useState<DialogType>(null);
   const [selectedTuition, setSelectedTuition] = useState<Tuition | null>(null);
   const [snackMsg, setSnackMsg] = useState('');
+
+  // Initialize Firebase listeners
+  useEffect(() => {
+    if (user?.id) {
+      initialize(user.id);
+    }
+    
+    return () => {
+      cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const activeTuitions = tuitions.filter((t) => t.status === 'active');
   const uniqueStudentIds = new Set(
@@ -59,20 +78,28 @@ export default function TeacherDashboard() {
   );
   const totalSalary = activeTuitions.reduce((sum, t) => sum + (t.salary ?? 0), 0);
 
-  const handleAddClass = (tuition: Tuition) => {
-    const today = new Date().toISOString().slice(0, 10);
-    addClassLog(tuition.id, today);
-    setSnackMsg(`Class added for ${tuition.subject}`);
+  const handleAddClass = async (tuition: Tuition) => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      await addClassLog(tuition.id, today);
+      setSnackMsg(`Class added for ${tuition.subject}`);
+    } catch {
+      setSnackMsg('Failed to add class');
+    }
   };
 
-  const handleDeleteLastClass = (tuition: Tuition) => {
+  const handleDeleteLastClass = async (tuition: Tuition) => {
     const logs = getLogsForTuition(tuition.id);
     if (logs.length === 0) {
       setSnackMsg('No classes to remove');
       return;
     }
-    deleteClassLog(logs[0].id);
-    setSnackMsg(`Last class removed for ${tuition.subject}`);
+    try {
+      await deleteClassLog(logs[0].id, tuition.id);
+      setSnackMsg(`Last class removed for ${tuition.subject}`);
+    } catch {
+      setSnackMsg('Failed to delete class');
+    }
   };
 
   const openDialog = (type: DialogType, tuition: Tuition) => {
@@ -97,18 +124,26 @@ export default function TeacherDashboard() {
     }
   };
 
-  const confirmReset = () => {
+  const confirmReset = async () => {
     if (!selectedTuition) return;
-    resetClassLogs(selectedTuition.id);
-    setSnackMsg(`Class logs reset for ${selectedTuition.subject}`);
-    closeDialog();
+    try {
+      await resetClassLogs(selectedTuition.id);
+      setSnackMsg(`Class logs reset for ${selectedTuition.subject}`);
+      closeDialog();
+    } catch {
+      setSnackMsg('Failed to reset class logs');
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!selectedTuition) return;
-    deleteTuition(selectedTuition.id);
-    setSnackMsg('Tuition deleted');
-    closeDialog();
+    try {
+      await deleteTuition(selectedTuition.id);
+      setSnackMsg('Tuition deleted');
+      closeDialog();
+    } catch {
+      setSnackMsg('Failed to delete tuition');
+    }
   };
 
   const renderTuitionCard = ({ item }: { item: Tuition }) => {
@@ -253,19 +288,26 @@ export default function TeacherDashboard() {
         />
       </Appbar.Header>
 
-      <FlatList
-        data={tuitions}
-        keyExtractor={(item) => item.id}
-        renderItem={renderTuitionCard}
-        ListHeaderComponent={ListHeader}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            No tuitions yet. Tap + to add one.
-          </Text>
-        }
-      />
+      {isLoading && tuitions.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Loading tuitions...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={tuitions}
+          keyExtractor={(item) => item.id}
+          renderItem={renderTuitionCard}
+          ListHeaderComponent={ListHeader}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>
+              No tuitions yet. Tap + to add one.
+            </Text>
+          }
+        />
+      )}
 
       <FAB
         icon="plus"
@@ -351,6 +393,16 @@ const styles = StyleSheet.create({
     color: Colors.textOnPrimary,
     fontSize: FontSize.lg,
     fontFamily: FontFamily.semibold,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: Spacing.md,
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.regular,
   },
   listContent: { padding: Spacing.lg, paddingBottom: 100 },
   statsRow: {

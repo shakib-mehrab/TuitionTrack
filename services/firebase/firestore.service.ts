@@ -1,11 +1,11 @@
 import { COLLECTIONS } from "@/config/firebase";
 import type {
-    ActivityLog,
-    ClassLog,
-    Homework,
-    HomeworkComment,
-    PaymentStatus,
-    Tuition
+  ActivityLog,
+  ClassLog,
+  Homework,
+  HomeworkComment,
+  PaymentStatus,
+  Tuition,
 } from "@/types";
 import firestore from "@react-native-firebase/firestore";
 
@@ -38,6 +38,20 @@ export interface Invitation {
   expiresAt?: string;
   usedBy?: string;
   usedAt?: string;
+}
+
+/**
+ * Helper function to remove undefined values from object
+ * Firestore doesn't accept undefined values, only null or omit the field
+ */
+function removeUndefined<T extends Record<string, any>>(obj: T): T {
+  const cleaned = {} as T;
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] !== undefined) {
+      cleaned[key as keyof T] = obj[key];
+    }
+  });
+  return cleaned;
 }
 
 /**
@@ -77,7 +91,9 @@ export class FirestoreService {
         createdAt: new Date().toISOString(),
       };
 
-      await tuitionRef.set(tuition);
+      // Remove undefined values before writing to Firestore
+      const cleanedTuition = removeUndefined(tuition);
+      await tuitionRef.set(cleanedTuition);
 
       // Create activity log
       await this.addActivityLog(
@@ -166,10 +182,15 @@ export class FirestoreService {
     return firestore()
       .collection(COLLECTIONS.TUITIONS)
       .where("teacherId", "==", teacherId)
-      .orderBy("createdAt", "desc")
       .onSnapshot(
         (snapshot) => {
-          const tuitions = snapshot.docs.map((doc) => doc.data() as Tuition);
+          const tuitions = snapshot.docs
+            .map((doc) => doc.data() as Tuition)
+            .sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime(),
+            );
           callback(tuitions);
         },
         (error) => {
@@ -188,10 +209,15 @@ export class FirestoreService {
     return firestore()
       .collection(COLLECTIONS.TUITIONS)
       .where("studentId", "==", studentId)
-      .orderBy("createdAt", "desc")
       .onSnapshot(
         (snapshot) => {
-          const tuitions = snapshot.docs.map((doc) => doc.data() as Tuition);
+          const tuitions = snapshot.docs
+            .map((doc) => doc.data() as Tuition)
+            .sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime(),
+            );
           callback(tuitions);
         },
         (error) => {
@@ -280,10 +306,15 @@ export class FirestoreService {
     return firestore()
       .collection(COLLECTIONS.CLASS_LOGS)
       .where("tuitionId", "==", tuitionId)
-      .orderBy("createdAt", "desc")
       .onSnapshot(
         (snapshot) => {
-          const logs = snapshot.docs.map((doc) => doc.data() as ClassLog);
+          const logs = snapshot.docs
+            .map((doc) => doc.data() as ClassLog)
+            .sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime(),
+            );
           callback(logs);
         },
         (error) => {
@@ -312,7 +343,7 @@ export class FirestoreService {
         createdAt: new Date().toISOString(),
       };
 
-      await hwRef.set(homework);
+      await hwRef.set(removeUndefined(homework));
 
       // Add activity log
       await this.addActivityLog(
@@ -397,10 +428,15 @@ export class FirestoreService {
     return firestore()
       .collection(COLLECTIONS.HOMEWORK)
       .where("tuitionId", "==", tuitionId)
-      .orderBy("createdAt", "desc")
       .onSnapshot(
         (snapshot) => {
-          const homework = snapshot.docs.map((doc) => doc.data() as Homework);
+          const homework = snapshot.docs
+            .map((doc) => doc.data() as Homework)
+            .sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime(),
+            );
           callback(homework);
         },
         (error) => {
@@ -419,10 +455,15 @@ export class FirestoreService {
     return firestore()
       .collection(COLLECTIONS.HOMEWORK)
       .where("teacherId", "==", teacherId)
-      .orderBy("createdAt", "desc")
       .onSnapshot(
         (snapshot) => {
-          const homework = snapshot.docs.map((doc) => doc.data() as Homework);
+          const homework = snapshot.docs
+            .map((doc) => doc.data() as Homework)
+            .sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime(),
+            );
           callback(homework);
         },
         (error) => {
@@ -486,7 +527,7 @@ export class FirestoreService {
           createdAt: now,
           updatedAt: now,
         };
-        await paymentRef.set(payment);
+        await paymentRef.set(removeUndefined(payment));
       }
 
       // Update tuition payment status
@@ -514,12 +555,11 @@ export class FirestoreService {
     return firestore()
       .collection(COLLECTIONS.PAYMENT_HISTORY)
       .where("tuitionId", "==", tuitionId)
-      .orderBy("month", "desc")
       .onSnapshot(
         (snapshot) => {
-          const payments = snapshot.docs.map(
-            (doc) => doc.data() as PaymentHistory,
-          );
+          const payments = snapshot.docs
+            .map((doc) => doc.data() as PaymentHistory)
+            .sort((a, b) => b.month.localeCompare(a.month));
           callback(payments);
         },
         (error) => {
@@ -567,11 +607,16 @@ export class FirestoreService {
     return firestore()
       .collection(COLLECTIONS.ACTIVITY_LOGS)
       .where("tuitionId", "==", tuitionId)
-      .orderBy("timestamp", "desc")
       .limit(50)
       .onSnapshot(
         (snapshot) => {
-          const logs = snapshot.docs.map((doc) => doc.data() as ActivityLog);
+          const logs = snapshot.docs
+            .map((doc) => doc.data() as ActivityLog)
+            .sort(
+              (a, b) =>
+                new Date(b.timestamp).getTime() -
+                new Date(a.timestamp).getTime(),
+            );
           callback(logs);
         },
         (error) => {
