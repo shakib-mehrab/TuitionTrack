@@ -56,6 +56,8 @@ export default function RegisterScreen() {
     }
     try {
       await register(name.trim(), email.trim(), password, role);
+      // Navigate to email verification screen
+      router.push('/(auth)/verify-email');
     } catch (e: any) {
       Alert.alert('Registration Failed', e.message ?? 'Something went wrong.');
     }

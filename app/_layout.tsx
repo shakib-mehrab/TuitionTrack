@@ -1,11 +1,12 @@
+import { initializeFirebase } from '@/config';
 import { Colors, FontFamily } from '@/constants/Colors';
 import { useAuthStore } from '@/store/authStore';
 import {
-  Poppins_400Regular,
-  Poppins_500Medium,
-  Poppins_600SemiBold,
-  Poppins_700Bold,
-  useFonts,
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    useFonts,
 } from '@expo-google-fonts/poppins';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -66,7 +67,7 @@ const paperTheme = {
 };
 
 export default function RootLayout() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, initializeAuth } = useAuthStore();
   const segments = useSegments();
   const router   = useRouter();
 
@@ -78,18 +79,31 @@ export default function RootLayout() {
   });
 
   const [isMounted, setIsMounted] = useState(false);
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
-  // Hide splash when fonts are ready
+  // Initialize Firebase and Auth
   useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync();
-  }, [fontsLoaded]);
+    async function initialize() {
+      try {
+        await initializeFirebase();
+        await initializeAuth();
+        setIsFirebaseReady(true);
+      } catch (error) {
+        console.error('Initialization error:', error);
+        setIsFirebaseReady(false);
+      }
+    }
+    initialize();
+  }, []);
 
+  // Mark component as mounted
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // Navigation based on auth state
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || !isFirebaseReady) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
@@ -102,9 +116,10 @@ export default function RootLayout() {
         router.replace('/(student)');
       }
     }
-  }, [isAuthenticated, isMounted, segments, user]);
+  }, [isAuthenticated, isMounted, isFirebaseReady, segments, user]);
 
-  if (!fontsLoaded) return null;
+  // Wait for fonts and Firebase to be ready
+  if (!fontsLoaded || !isFirebaseReady) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

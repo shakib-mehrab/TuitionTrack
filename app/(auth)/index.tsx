@@ -147,6 +147,15 @@ export default function LoginScreen() {
             <Text style={styles.footerLink}>Create one</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Temporary: Seed Database Button - Remove after setup */}
+        <TouchableOpacity
+          style={styles.seedBtn}
+          onPress={() => router.push('/(auth)/seed-database')}
+        >
+          <MaterialCommunityIcons name="database" size={16} color={Colors.warning} />
+          <Text style={styles.seedBtnText}> Setup: Seed Database</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
     </SafeAreaView>
@@ -264,5 +273,17 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.accent,
     fontFamily: FontFamily.semibold,
+  },
+  seedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.lg,
+    padding: Spacing.sm,
+  },
+  seedBtnText: {
+    fontSize: FontSize.xs,
+    color: Colors.warning,
+    fontFamily: FontFamily.medium,
   },
 });

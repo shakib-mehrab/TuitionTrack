@@ -32,6 +32,18 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+
+# Firebase sensitive files
+google-services.json
+GoogleService-Info.plist
+*firebase-adminsdk*.json
+
+# Android local properties
+android/local.properties
+
+# EAS credentials (if storing secrets locally)
+# eas.json may contain env vars - review before committing!
 
 # typescript
 *.tsbuildinfo
@@ -43,3 +55,11 @@ app-example
 /android
 
 Project_context.md
+FIREBASE_SETUP_GUIDE.md
+IMPLEMENTATION_STATUS.md
+PRE_BUILD_CHECKLIST.md
+SECURITY_SETUP.md
+SETUP_CHECKLIST.md
+SETUP_GUIDE.md
+SETUP_UPDATED.md
+EAS_BUILD_SECURITY.md

@@ -1,0 +1,56 @@
+/**
+ * Firebase Configuration
+ *
+ * Using environment variables for security.
+ * Values are loaded from .env file (not committed to git)
+ */
+
+import {
+    FIREBASE_API_KEY,
+    FIREBASE_APP_ID,
+    FIREBASE_AUTH_DOMAIN,
+    FIREBASE_MESSAGING_SENDER_ID,
+    FIREBASE_PROJECT_ID,
+    FIREBASE_STORAGE_BUCKET,
+} from "@env";
+
+export const firebaseConfig = {
+  apiKey: FIREBASE_API_KEY,
+  authDomain: FIREBASE_AUTH_DOMAIN,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId: FIREBASE_APP_ID,
+};
+
+/**
+ * Firebase Collections
+ * Centralized collection names for consistency
+ */
+export const COLLECTIONS = {
+  USERS: "users",
+  TUITIONS: "tuitions",
+  CLASS_LOGS: "class_logs",
+  HOMEWORK: "homework",
+  ACTIVITY_LOGS: "activity_logs",
+  PAYMENT_HISTORY: "payment_history",
+  INVITATIONS: "invitations",
+} as const;
+
+/**
+ * Storage paths
+ */
+export const STORAGE_PATHS = {
+  HOMEWORK_ATTACHMENTS: "homework_attachments",
+  PROFILE_PICTURES: "profile_pictures",
+} as const;
+
+/**
+ * Configuration constants
+ */
+export const CONFIG = {
+  MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
+  ENABLE_OFFLINE_PERSISTENCE: true,
+  EMAIL_VERIFICATION_REQUIRED: false,
+  ENABLE_FILE_UPLOADS: false, // Set to true if Firebase Storage is enabled
+} as const;

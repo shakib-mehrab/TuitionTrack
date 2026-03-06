@@ -1,10 +1,14 @@
+import { CONFIG } from "@/config";
+import { AuthService } from "@/services/firebase";
 import type { User } from "@/types";
+import auth from "@react-native-firebase/auth";
 import { create } from "zustand";
 
 interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  emailVerified: boolean;
   // Actions
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
@@ -15,69 +19,143 @@ interface AuthState {
     password: string,
     role: User["role"],
   ) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  resendVerificationEmail: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  initializeAuth: () => Promise<void>;
 }
 
-// Mock credentials for testing the UI without Firebase
-const MOCK_USERS: Record<string, User & { password: string }> = {
-  "teacher@demo.com": {
-    id: "teacher_1",
-    name: "Rahul Sharma",
-    email: "teacher@demo.com",
-    role: "teacher",
-    createdAt: "2025-01-01T00:00:00.000Z",
-    password: "password123",
-  },
-  "student@demo.com": {
-    id: "student_1",
-    name: "Arjun Kumar",
-    email: "student@demo.com",
-    role: "student",
-    createdAt: "2025-01-01T00:00:00.000Z",
-    password: "password123",
-  },
-};
-
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: false,
   isAuthenticated: false,
+  emailVerified: false,
 
-  setUser: (user) => set({ user, isAuthenticated: !!user }),
+  setUser: (user) =>
+    set({
+      user,
+      isAuthenticated: !!user,
+      emailVerified: user ? auth().currentUser?.emailVerified || false : false,
+    }),
 
   setLoading: (isLoading) => set({ isLoading }),
 
   login: async (email, password) => {
     set({ isLoading: true });
     try {
-      await new Promise((r) => setTimeout(r, 1000)); // simulate network
-      const found = MOCK_USERS[email.toLowerCase()];
-      if (!found || found.password !== password) {
-        throw new Error("Invalid email or password");
-      }
-      const { password: _pw, ...user } = found;
-      set({ user, isAuthenticated: true });
+      const user = await AuthService.login(email, password);
+      set({
+        user,
+        isAuthenticated: true,
+        emailVerified: auth().currentUser?.emailVerified || false,
+      });
+    } catch (error: any) {
+      throw error;
     } finally {
       set({ isLoading: false });
     }
   },
 
-  register: async (name, email, _password, role) => {
+  register: async (name, email, password, role) => {
     set({ isLoading: true });
     try {
-      await new Promise((r) => setTimeout(r, 1200));
-      const user: User = {
-        id: `user_${Date.now()}`,
-        name,
-        email,
-        role,
-        createdAt: new Date().toISOString(),
-      };
-      set({ user, isAuthenticated: true });
+      const user = await AuthService.register(name, email, password, role);
+
+      // If email verification is required, don't set as authenticated
+      if (CONFIG.EMAIL_VERIFICATION_REQUIRED) {
+        set({
+          user,
+          isAuthenticated: false,
+          emailVerified: false,
+        });
+      } else {
+        set({
+          user,
+          isAuthenticated: true,
+          emailVerified: true,
+        });
+      }
+    } catch (error: any) {
+      throw error;
     } finally {
       set({ isLoading: false });
     }
   },
 
-  logout: () => set({ user: null, isAuthenticated: false }),
+  logout: async () => {
+    try {
+      await AuthService.logout();
+      set({ user: null, isAuthenticated: false, emailVerified: false });
+    } catch (error: any) {
+      throw error;
+    }
+  },
+
+  resendVerificationEmail: async () => {
+    try {
+      await AuthService.resendVerificationEmail();
+    } catch (error: any) {
+      throw error;
+    }
+  },
+
+  resetPassword: async (email: string) => {
+    try {
+      await AuthService.resetPassword(email);
+    } catch (error: any) {
+      throw error;
+    }
+  },
+
+  initializeAuth: async () => {
+    set({ isLoading: true });
+    try {
+      // Listen to auth state changes
+      AuthService.onAuthStateChanged(async (firebaseUser) => {
+        if (firebaseUser) {
+          // Check email verification
+          if (
+            CONFIG.EMAIL_VERIFICATION_REQUIRED &&
+            !firebaseUser.emailVerified
+          ) {
+            set({
+              user: null,
+              isAuthenticated: false,
+              emailVerified: false,
+              isLoading: false,
+            });
+            return;
+          }
+
+          // Get user data from Firestore
+          const user = await AuthService.getCurrentUser();
+          if (user) {
+            set({
+              user,
+              isAuthenticated: true,
+              emailVerified: firebaseUser.emailVerified,
+              isLoading: false,
+            });
+          } else {
+            set({
+              user: null,
+              isAuthenticated: false,
+              emailVerified: false,
+              isLoading: false,
+            });
+          }
+        } else {
+          set({
+            user: null,
+            isAuthenticated: false,
+            emailVerified: false,
+            isLoading: false,
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Auth initialization error:", error);
+      set({ isLoading: false });
+    }
+  },
 }));
