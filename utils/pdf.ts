@@ -93,7 +93,7 @@ export async function generateTuitionPDF(
       --surface:  #181830;
       --surface2: #1E1E40;
       --border:   #2E2E60;
-      --primary:  #7C3AED;
+      --primary:  #EAB308;
       --accent:   #22D3EE;
       --text:     #F8FAFC;
       --muted:    #CBD5E1;
@@ -279,8 +279,8 @@ export async function generateTuitionPDF(
   <section>
     <div class="section-title">Monthly Progress — ${monthLabel}</div>
     <div class="pills">
-      <div class="pill" style="border-color:#7C3AED">
-        <span class="pill-value" style="color:#A78BFA">${planned}</span>
+      <div class="pill" style="border-color:#EAB308">
+        <span class="pill-value" style="color:#FACC15">${planned}</span>
         <span class="pill-label">Planned</span>
       </div>
       <div class="pill" style="border-color:#10B981">
@@ -408,7 +408,7 @@ export async function generatePaymentReceipt(
       --bg:       #FFFFFF;
       --surface:  #F8FAFC;
       --border:   #E2E8F0;
-      --primary:  #7C3AED;
+      --primary:  #EAB308;
       --accent:   #22D3EE;
       --text:     #1E293B;
       --muted:    #64748B;
@@ -431,7 +431,7 @@ export async function generatePaymentReceipt(
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     }
     .header {
-      background: linear-gradient(135deg, #7C3AED 0%, #22D3EE 100%);
+      background: linear-gradient(135deg, #EAB308 0%, #22D3EE 100%);
       padding: 18px 24px;
       text-align: center;
       border-bottom: 3px solid var(--primary);
@@ -583,7 +583,7 @@ export async function generatePaymentReceipt(
       left: 50%;
       transform: translate(-50%, -50%) rotate(-45deg);
       font-size: 80px;
-      color: rgba(124, 58, 237, 0.02);
+      color: rgba(234, 179, 8, 0.02);
       font-weight: 900;
       pointer-events: none;
       z-index: 0;

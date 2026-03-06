@@ -7,16 +7,16 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import {
-  Appbar,
-  Button,
-  Card,
-  Dialog,
-  FAB,
-  Portal,
-  ProgressBar,
-  Snackbar,
-  Surface,
-  Text,
+    Appbar,
+    Button,
+    Card,
+    Dialog,
+    FAB,
+    Portal,
+    ProgressBar,
+    Snackbar,
+    Surface,
+    Text,
 } from 'react-native-paper';
 
 type DialogType = 'reset' | 'delete' | null;
@@ -157,10 +157,10 @@ export default function TeacherDashboard() {
           <View style={styles.cardHeader}>
             <View style={{ flex: 1 }}>
               <Text variant="titleMedium" style={styles.subject}>
-                {item.subject}
+                {item.studentName ?? 'No student assigned'}
               </Text>
               <Text variant="bodySmall" style={styles.studentName}>
-                {item.studentName ?? 'No student assigned'}
+                {item.subject}
               </Text>
               <Text variant="bodySmall" style={styles.timeText}>
                 {item.startTime} – {item.endTime} · {item.schedule}
