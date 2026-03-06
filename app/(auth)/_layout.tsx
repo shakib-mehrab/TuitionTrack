@@ -11,7 +11,7 @@ export default function AuthLayout() {
       <Stack.Screen name="register" />
       <Stack.Screen name="verify-email" />
       <Stack.Screen name="forgot-password" />
-      <Stack.Screen name="seed-database" />
+      <Stack.Screen name="google-role-select" />
     </Stack>
   );
 }

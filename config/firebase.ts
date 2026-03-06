@@ -12,6 +12,7 @@ import {
     FIREBASE_MESSAGING_SENDER_ID,
     FIREBASE_PROJECT_ID,
     FIREBASE_STORAGE_BUCKET,
+    GOOGLE_WEB_CLIENT_ID,
 } from "@env";
 
 export const firebaseConfig = {
@@ -51,6 +52,7 @@ export const STORAGE_PATHS = {
 export const CONFIG = {
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   ENABLE_OFFLINE_PERSISTENCE: true,
-  EMAIL_VERIFICATION_REQUIRED: false,
+  EMAIL_VERIFICATION_REQUIRED: true,
   ENABLE_FILE_UPLOADS: false, // Set to true if Firebase Storage is enabled
+  GOOGLE_WEB_CLIENT_ID,
 } as const;

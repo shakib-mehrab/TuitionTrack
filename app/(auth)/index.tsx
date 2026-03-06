@@ -67,16 +67,6 @@ export default function LoginScreen() {
           <Text style={styles.title}>Welcome back</Text>
           <Text style={styles.subtitle}>Sign in to your account</Text>
 
-          {/* Demo credentials hint */}
-          <View style={styles.demoBox}>
-            <View style={styles.demoTitleRow}>
-              <MaterialCommunityIcons name="information-outline" size={14} color={Colors.accent} />
-              <Text style={styles.demoTitle}> Demo Credentials</Text>
-            </View>
-            <Text style={styles.demoText}>Teacher: teacher@demo.com / password123</Text>
-            <Text style={styles.demoText}>Student: student@demo.com / password123</Text>
-          </View>
-
           {/* Email */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
@@ -91,7 +81,7 @@ export default function LoginScreen() {
                 style={styles.textInput}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="teacher@demo.com"
+                placeholder="you@example.com"
                 placeholderTextColor={Colors.textTertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -128,6 +118,10 @@ export default function LoginScreen() {
             </View>
           </View>
 
+          <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.loginBtn, isLoading && styles.loginBtnDisabled]}
             onPress={handleLogin}
@@ -139,6 +133,16 @@ export default function LoginScreen() {
               <Text style={styles.loginBtnText}>Sign In</Text>
             )}
           </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google Sign-In */}
+          <GoogleSignInButton />
         </View>
 
         <View style={styles.footer}>
@@ -147,18 +151,36 @@ export default function LoginScreen() {
             <Text style={styles.footerLink}>Create one</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Temporary: Seed Database Button - Remove after setup */}
-        <TouchableOpacity
-          style={styles.seedBtn}
-          onPress={() => router.push('/(auth)/seed-database')}
-        >
-          <MaterialCommunityIcons name="database" size={16} color={Colors.warning} />
-          <Text style={styles.seedBtnText}> Setup: Seed Database</Text>
-        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function GoogleSignInButton() {
+  const { loginWithGoogle, isLoading } = useAuthStore();
+  const router = useRouter();
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const isNewUser = await loginWithGoogle();
+      if (isNewUser) {
+        router.push('/(auth)/google-role-select');
+      }
+    } catch (e: any) {
+      Alert.alert('Google Sign-In Failed', e.message ?? 'Could not sign in with Google.');
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={[styles.googleBtn, isLoading && styles.loginBtnDisabled]}
+      onPress={handleGoogleSignIn}
+      disabled={isLoading}
+    >
+      <MaterialCommunityIcons name="google" size={20} color={Colors.textPrimary} />
+      <Text style={styles.googleBtnText}>Continue with Google</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -199,28 +221,15 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
     color: Colors.textPrimary,
     marginBottom: Spacing.xs,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: FontSize.sm,
     fontFamily: FontFamily.regular,
     color: Colors.textSecondary,
     marginBottom: Spacing.lg,
+    textAlign: 'center',
   },
-  demoBox: {
-    backgroundColor: Colors.infoLight,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.info,
-  },
-  demoTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.xs },
-  demoTitle: {
-    fontSize: FontSize.xs,
-    fontFamily: FontFamily.semibold,
-    color: Colors.accent,
-  },
-  demoText: { fontSize: FontSize.xs, color: Colors.textSecondary, lineHeight: 18, fontFamily: FontFamily.regular },
   inputContainer: { marginBottom: Spacing.md },
   label: {
     fontSize: FontSize.sm,
@@ -247,6 +256,14 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   eyeBtn: { padding: Spacing.xs },
+  forgotText: {
+    fontSize: FontSize.xs,
+    color: Colors.accent,
+    fontFamily: FontFamily.medium,
+    textAlign: 'right',
+    marginBottom: Spacing.md,
+    marginTop: -Spacing.xs,
+  },
   loginBtn: {
     backgroundColor: Colors.primary,
     borderRadius: BorderRadius.md,
@@ -254,7 +271,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.sm,
     gap: Spacing.xs,
   },
   loginBtnDisabled: { opacity: 0.6 },
@@ -262,6 +278,34 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: FontSize.base,
     fontFamily: FontFamily.semibold,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
+  dividerText: {
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    fontFamily: FontFamily.regular,
+  },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    height: 50,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceVariant,
+  },
+  googleBtnText: {
+    fontSize: FontSize.base,
+    fontFamily: FontFamily.medium,
+    color: Colors.textPrimary,
   },
   footer: {
     flexDirection: 'row',
@@ -274,16 +318,5 @@ const styles = StyleSheet.create({
     color: Colors.accent,
     fontFamily: FontFamily.semibold,
   },
-  seedBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.lg,
-    padding: Spacing.sm,
-  },
-  seedBtnText: {
-    fontSize: FontSize.xs,
-    color: Colors.warning,
-    fontFamily: FontFamily.medium,
-  },
 });
+
