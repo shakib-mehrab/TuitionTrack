@@ -6,7 +6,6 @@ import { create } from "zustand";
 
 interface AuthState {
   user: User | null;
-  pendingGoogleUser: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   emailVerified: boolean;
@@ -20,8 +19,6 @@ interface AuthState {
     password: string,
     role: User["role"],
   ) => Promise<void>;
-  loginWithGoogle: () => Promise<boolean>;
-  completeGoogleSignIn: (role: User["role"]) => Promise<void>;
   logout: () => Promise<void>;
   resendVerificationEmail: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -30,7 +27,6 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  pendingGoogleUser: null,
   isLoading: false,
   isAuthenticated: false,
   emailVerified: false,
@@ -91,49 +87,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await AuthService.logout();
       set({
         user: null,
-        pendingGoogleUser: null,
         isAuthenticated: false,
         emailVerified: false,
       });
     } catch (error: any) {
-      throw error;
-    }
-  },
-
-  loginWithGoogle: async () => {
-    set({ isLoading: true });
-    try {
-      const { user, isNewUser } = await AuthService.loginWithGoogle();
-      if (isNewUser) {
-        set({ pendingGoogleUser: user, isLoading: false });
-        return true;
-      }
-      set({
-        user,
-        isAuthenticated: true,
-        emailVerified: true,
-        isLoading: false,
-      });
-      return false;
-    } catch (error: any) {
-      set({ isLoading: false });
-      throw error;
-    }
-  },
-
-  completeGoogleSignIn: async (role) => {
-    set({ isLoading: true });
-    try {
-      const user = await AuthService.completeGoogleRegistration(role);
-      set({
-        user,
-        pendingGoogleUser: null,
-        isAuthenticated: true,
-        emailVerified: true,
-        isLoading: false,
-      });
-    } catch (error: any) {
-      set({ isLoading: false });
       throw error;
     }
   },
@@ -157,7 +114,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initializeAuth: async () => {
     set({ isLoading: true });
     try {
-      AuthService.configureGoogleSignIn();
       // Listen to auth state changes
       AuthService.onAuthStateChanged(async (firebaseUser) => {
         if (firebaseUser) {

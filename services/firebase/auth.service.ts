@@ -1,14 +1,7 @@
-import { COLLECTIONS, CONFIG } from "@/config/firebase";
+import { COLLECTIONS, CONFIG, firebaseConfig } from "@/config/firebase";
 import type { User, UserRole } from "@/types";
-import auth, {
-  FirebaseAuthTypes,
-  GoogleAuthProvider,
-} from "@react-native-firebase/auth";
+import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import firestore from "@react-native-firebase/firestore";
-import {
-  GoogleSignin,
-  statusCodes,
-} from "@react-native-google-signin/google-signin";
 
 /**
  * Firebase Authentication Service
@@ -36,7 +29,7 @@ export class AuthService {
       if (CONFIG.EMAIL_VERIFICATION_REQUIRED) {
         const actionCodeSettings = {
           // URL to redirect to after verification
-          url: `https://${CONFIG.GOOGLE_WEB_CLIENT_ID.split("-")[0]}.firebaseapp.com`,
+          url: `https://${firebaseConfig.authDomain}`,
           // This must be true for email link sign-in
           handleCodeInApp: false,
           iOS: {
@@ -145,7 +138,7 @@ export class AuthService {
         throw new Error("No user is currently signed in");
       }
       const actionCodeSettings = {
-        url: `https://${CONFIG.GOOGLE_WEB_CLIENT_ID.split("-")[0]}.firebaseapp.com`,
+        url: `https://${firebaseConfig.authDomain}`,
         handleCodeInApp: false,
         iOS: {
           bundleId: "com.tuitiontrack.app",
@@ -183,92 +176,6 @@ export class AuthService {
       console.error("Get current user error:", error);
       return null;
     }
-  }
-
-  /**
-   * Configure Google Sign-In (call once at app startup)
-   */
-  static configureGoogleSignIn(): void {
-    GoogleSignin.configure({
-      webClientId: CONFIG.GOOGLE_WEB_CLIENT_ID,
-    });
-  }
-
-  /**
-   * Sign in with Google — returns user data and whether this is a new account.
-   * If isNewUser is true, caller must call completeGoogleRegistration to pick a role.
-   */
-  static async loginWithGoogle(): Promise<{ user: User; isNewUser: boolean }> {
-    try {
-      await GoogleSignin.hasPlayServices({
-        showPlayServicesUpdateDialog: true,
-      });
-      const signInResult = await GoogleSignin.signIn();
-      const idToken = signInResult.data?.idToken;
-      if (!idToken)
-        throw new Error("Google Sign-In failed — no ID token returned.");
-
-      const googleCredential = GoogleAuthProvider.credential(idToken);
-      const userCredential =
-        await auth().signInWithCredential(googleCredential);
-      const { uid, displayName, email } = userCredential.user;
-      const isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
-
-      if (!isNewUser) {
-        const userDoc = await firestore()
-          .collection(COLLECTIONS.USERS)
-          .doc(uid)
-          .get();
-        if (userDoc && userDoc.data()) {
-          return { user: userDoc.data() as User, isNewUser: false };
-        }
-      }
-
-      // New user or missing Firestore doc — return shell, role must be selected
-      return {
-        user: {
-          id: uid,
-          name: displayName || "User",
-          email: email || "",
-          role: "student",
-          createdAt: new Date().toISOString(),
-        },
-        isNewUser: true,
-      };
-    } catch (error: any) {
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        throw new Error("Sign-in cancelled.");
-      }
-      if (error.code === statusCodes.IN_PROGRESS) {
-        throw new Error("Sign-in already in progress.");
-      }
-      if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        throw new Error("Google Play Services not available.");
-      }
-      throw this.handleAuthError(error);
-    }
-  }
-
-  /**
-   * Complete Google registration by saving the user doc with their chosen role.
-   */
-  static async completeGoogleRegistration(role: UserRole): Promise<User> {
-    const currentUser = auth().currentUser;
-    if (!currentUser) throw new Error("No user signed in.");
-
-    const userData: User = {
-      id: currentUser.uid,
-      name: currentUser.displayName || "User",
-      email: currentUser.email || "",
-      role,
-      createdAt: new Date().toISOString(),
-    };
-
-    await firestore()
-      .collection(COLLECTIONS.USERS)
-      .doc(currentUser.uid)
-      .set(userData);
-    return userData;
   }
 
   /**

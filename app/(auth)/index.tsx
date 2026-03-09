@@ -133,16 +133,6 @@ export default function LoginScreen() {
               <Text style={styles.loginBtnText}>Sign In</Text>
             )}
           </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Google Sign-In */}
-          <GoogleSignInButton />
         </View>
 
         <View style={styles.footer}>
@@ -154,33 +144,6 @@ export default function LoginScreen() {
       </ScrollView>
     </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-}
-
-function GoogleSignInButton() {
-  const { loginWithGoogle, isLoading } = useAuthStore();
-  const router = useRouter();
-
-  const handleGoogleSignIn = async () => {
-    try {
-      const isNewUser = await loginWithGoogle();
-      if (isNewUser) {
-        router.push('/(auth)/google-role-select');
-      }
-    } catch (e: any) {
-      Alert.alert('Google Sign-In Failed', e.message ?? 'Could not sign in with Google.');
-    }
-  };
-
-  return (
-    <TouchableOpacity
-      style={[styles.googleBtn, isLoading && styles.loginBtnDisabled]}
-      onPress={handleGoogleSignIn}
-      disabled={isLoading}
-    >
-      <MaterialCommunityIcons name="google" size={20} color={Colors.textPrimary} />
-      <Text style={styles.googleBtnText}>Continue with Google</Text>
-    </TouchableOpacity>
   );
 }
 
@@ -278,34 +241,6 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: FontSize.base,
     fontFamily: FontFamily.semibold,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
-  dividerText: {
-    fontSize: FontSize.xs,
-    color: Colors.textTertiary,
-    fontFamily: FontFamily.regular,
-  },
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    height: 50,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surfaceVariant,
-  },
-  googleBtnText: {
-    fontSize: FontSize.base,
-    fontFamily: FontFamily.medium,
-    color: Colors.textPrimary,
   },
   footer: {
     flexDirection: 'row',
