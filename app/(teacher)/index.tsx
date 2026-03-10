@@ -49,6 +49,7 @@ export default function TeacherDashboard() {
     resetClassLogs,
     deleteTuition,
     getClassCountForMonth,
+    getTotalClassCount,
     getLogsForTuition,
     getHomeworkForTuition,
   } = useTeacherStore();
@@ -147,9 +148,10 @@ export default function TeacherDashboard() {
   };
 
   const renderTuitionCard = ({ item }: { item: Tuition }) => {
+    const totalClasses = getTotalClassCount(item.id);
     const classCount = getClassCountForMonth(item.id, currentMonth);
     const planned = item.plannedClassesPerMonth || 1;
-    const progress = Math.min(classCount / planned, 1);
+    const progress = Math.min(totalClasses / planned, 1);
 
     return (
       <Card style={styles.card} mode="elevated">
@@ -185,7 +187,7 @@ export default function TeacherDashboard() {
 
           <View style={styles.progressRow}>
             <Text variant="bodySmall" style={styles.progressLabel}>
-              {classCount} / {planned} classes this month
+              {totalClasses} / {planned} classes ({classCount} this month)
             </Text>
             <Text variant="bodySmall" style={styles.progressPct}>
               {Math.round(progress * 100)}%

@@ -61,9 +61,16 @@ export default function StudentTuitionDetail() {
     getLogsForTuition,
     getHomeworkForTuition,
     getClassCountForMonth,
+    getTotalClassCount,
     markHomeworkComplete,
     addComment,
+    classLogs, // Subscribe to trigger re-renders when class logs change
+    homework, // Subscribe to trigger re-renders when homework changes
   } = useStudentStore();
+
+  // Prevent ESLint warning - subscriptions are used for reactive updates
+  void classLogs;
+  void homework;
 
   const [snackMsg, setSnackMsg] = useState('');
   const [viewingHwId, setViewingHwId] = useState<string | null>(null);
@@ -82,10 +89,11 @@ export default function StudentTuitionDetail() {
 
   const logs = getLogsForTuition(tuition.id);
   const homeworkList = getHomeworkForTuition(tuition.id);
+  const totalClasses = getTotalClassCount(tuition.id);
   const classCount = getClassCountForMonth(tuition.id, currentMonth);
   const planned = tuition.plannedClassesPerMonth || 1;
-  const progress = Math.min(classCount / planned, 1);
-  const remaining = Math.max(planned - classCount, 0);
+  const progress = Math.min(totalClasses / planned, 1);
+  const remaining = Math.max(planned - totalClasses, 0);
 
   // Get the current homework being viewed (reactively updates when homework changes)
   const viewingHw = useMemo(() => {
@@ -178,7 +186,7 @@ export default function StudentTuitionDetail() {
             </Text>
             <View style={styles.statsRow}>
               <StatPill label="Planned" value={planned} color={Colors.primary} />
-              <StatPill label="Done" value={classCount} color={Colors.success} />
+              <StatPill label="Done" value={totalClasses} color={Colors.success} />
               <StatPill label="Remaining" value={remaining} color={Colors.warning} />
             </View>
             <ProgressBar

@@ -1,11 +1,11 @@
 import { FirestoreService } from "@/services/firebase/firestore.service";
 import type {
-    ActivityLog,
-    ClassLog,
-    Homework,
-    HomeworkComment,
-    PaymentStatus,
-    Tuition,
+  ActivityLog,
+  ClassLog,
+  Homework,
+  HomeworkComment,
+  PaymentStatus,
+  Tuition,
 } from "@/types";
 import { create } from "zustand";
 
@@ -64,6 +64,7 @@ interface TeacherState {
   getActivityForTuition: (tuitionId: string) => ActivityLog[];
   getTuitionById: (id: string) => Tuition | undefined;
   getClassCountForMonth: (tuitionId: string, month: string) => number;
+  getTotalClassCount: (tuitionId: string) => number;
 
   // Invitation
   generateInviteCode: (tuitionId: string, teacherId: string) => Promise<string>;
@@ -227,20 +228,50 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
 
   // ── Class Logs ──
   addClassLog: async (tuitionId, date) => {
+    // Optimistic update - add to local state immediately
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const optimisticLog: ClassLog = {
+      id: tempId,
+      tuitionId,
+      date,
+      createdAt: new Date().toISOString(),
+    };
+
+    set((state) => ({
+      classLogs: [optimisticLog, ...state.classLogs],
+    }));
+
     try {
       await FirestoreService.addClassLog(tuitionId, date);
-      // Real-time listener will update the state
+      // Real-time listener will replace the optimistic log with the real one
     } catch (error) {
+      // Remove optimistic log on error
+      set((state) => ({
+        classLogs: state.classLogs.filter((log) => log.id !== tempId),
+      }));
       console.error("Add class log error:", error);
       throw error;
     }
   },
 
   deleteClassLog: async (logId, tuitionId) => {
+    // Optimistic update - remove from local state immediately
+    const deletedLog = get().classLogs.find((log) => log.id === logId);
+
+    set((state) => ({
+      classLogs: state.classLogs.filter((log) => log.id !== logId),
+    }));
+
     try {
       await FirestoreService.deleteClassLog(logId, tuitionId);
-      // Real-time listener will update the state
+      // Real-time listener will confirm the deletion
     } catch (error) {
+      // Restore the log on error
+      if (deletedLog) {
+        set((state) => ({
+          classLogs: [deletedLog, ...state.classLogs],
+        }));
+      }
       console.error("Delete class log error:", error);
       throw error;
     }
@@ -285,40 +316,105 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
 
   // ── Homework ──
   addHomework: async (data) => {
+    // Optimistic update - add to local state immediately
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const optimisticHomework: Homework = {
+      ...data,
+      id: tempId,
+      completed: false,
+      comments: [],
+      createdAt: new Date().toISOString(),
+    };
+
+    set((state) => ({
+      homework: [optimisticHomework, ...state.homework],
+    }));
+
     try {
       await FirestoreService.createHomework(data);
-      // Real-time listener will update the state
+      // Real-time listener will replace the optimistic homework with the real one
     } catch (error) {
+      // Remove optimistic homework on error
+      set((state) => ({
+        homework: state.homework.filter((hw) => hw.id !== tempId),
+      }));
       console.error("Add homework error:", error);
       throw error;
     }
   },
 
   updateHomework: async (id, data) => {
+    // Optimistic update - update local state immediately
+    const oldHomework = get().homework.find((hw) => hw.id === id);
+
+    set((state) => ({
+      homework: state.homework.map((hw) =>
+        hw.id === id ? { ...hw, ...data } : hw,
+      ),
+    }));
+
     try {
       await FirestoreService.updateHomework(id, data);
-      // Real-time listener will update the state
+      // Real-time listener will confirm the update
     } catch (error) {
+      // Restore old homework on error
+      if (oldHomework) {
+        set((state) => ({
+          homework: state.homework.map((hw) =>
+            hw.id === id ? oldHomework : hw,
+          ),
+        }));
+      }
       console.error("Update homework error:", error);
       throw error;
     }
   },
 
   deleteHomework: async (id) => {
+    // Optimistic update - remove from local state immediately
+    const deletedHomework = get().homework.find((hw) => hw.id === id);
+
+    set((state) => ({
+      homework: state.homework.filter((hw) => hw.id !== id),
+    }));
+
     try {
       await FirestoreService.deleteHomework(id);
-      // Real-time listener will update the state
+      // Real-time listener will confirm the deletion
     } catch (error) {
+      // Restore homework on error
+      if (deletedHomework) {
+        set((state) => ({
+          homework: [deletedHomework, ...state.homework],
+        }));
+      }
       console.error("Delete homework error:", error);
       throw error;
     }
   },
 
   markHomeworkComplete: async (id, completed) => {
+    // Optimistic update - update local state immediately
+    const oldCompleted = get().homework.find((hw) => hw.id === id)?.completed;
+
+    set((state) => ({
+      homework: state.homework.map((hw) =>
+        hw.id === id ? { ...hw, completed } : hw,
+      ),
+    }));
+
     try {
       await FirestoreService.updateHomework(id, { completed });
-      // Real-time listener will update the state
+      // Real-time listener will confirm the update
     } catch (error) {
+      // Restore old status on error
+      if (oldCompleted !== undefined) {
+        set((state) => ({
+          homework: state.homework.map((hw) =>
+            hw.id === id ? { ...hw, completed: oldCompleted } : hw,
+          ),
+        }));
+      }
       console.error("Mark homework complete error:", error);
       throw error;
     }
@@ -365,6 +461,9 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
     get().classLogs.filter(
       (l) => l.tuitionId === tuitionId && l.date.startsWith(month),
     ).length,
+
+  getTotalClassCount: (tuitionId) =>
+    get().classLogs.filter((l) => l.tuitionId === tuitionId).length,
 
   // ── Invitation ──
   generateInviteCode: async (tuitionId, teacherId) => {

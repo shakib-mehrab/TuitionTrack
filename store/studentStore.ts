@@ -45,6 +45,7 @@ interface StudentState {
   getActivityForTuition: (tuitionId: string) => ActivityLog[];
   getTuitionById: (id: string) => Tuition | undefined;
   getClassCountForMonth: (tuitionId: string, month: string) => number;
+  getTotalClassCount: (tuitionId: string) => number;
 }
 
 // Unsubscribe functions for Firebase listeners
@@ -178,10 +179,27 @@ export const useStudentStore = create<StudentState>((set, get) => ({
 
   // ── Homework ──
   markHomeworkComplete: async (id, completed) => {
+    // Optimistic update - update local state immediately
+    const oldCompleted = get().homework.find((hw) => hw.id === id)?.completed;
+
+    set((state) => ({
+      homework: state.homework.map((hw) =>
+        hw.id === id ? { ...hw, completed } : hw,
+      ),
+    }));
+
     try {
       await FirestoreService.updateHomework(id, { completed });
-      // Real-time listener will update the state
+      // Real-time listener will confirm the update
     } catch (error) {
+      // Restore old status on error
+      if (oldCompleted !== undefined) {
+        set((state) => ({
+          homework: state.homework.map((hw) =>
+            hw.id === id ? { ...hw, completed: oldCompleted } : hw,
+          ),
+        }));
+      }
       console.error("Mark homework complete error:", error);
       throw error;
     }
@@ -228,4 +246,7 @@ export const useStudentStore = create<StudentState>((set, get) => ({
     get().classLogs.filter(
       (l) => l.tuitionId === tuitionId && l.date.startsWith(month),
     ).length,
+
+  getTotalClassCount: (tuitionId) =>
+    get().classLogs.filter((l) => l.tuitionId === tuitionId).length,
 }));

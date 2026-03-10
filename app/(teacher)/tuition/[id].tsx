@@ -68,6 +68,7 @@ export default function TuitionDetailScreen() {
     getHomeworkForTuition,
     getActivityForTuition,
     getClassCountForMonth,
+    getTotalClassCount,
     addClassLog,
     deleteClassLog,
     addHomework,
@@ -77,13 +78,20 @@ export default function TuitionDetailScreen() {
     updatePaymentStatus,
     generateInviteCode,
     addComment,
+    classLogs, // Subscribe to trigger re-renders when class logs change
+    homework, // Subscribe to trigger re-renders when homework changes
   } = useTeacherStore();
+
+  // Prevent ESLint warning - subscriptions are used for reactive updates
+  void classLogs;
+  void homework;
 
   const tuition = getTuitionById(id);
   const currentMonth = new Date().toISOString().slice(0, 7);
   const logs = tuition ? getLogsForTuition(tuition.id) : [];
   const homeworkList = tuition ? getHomeworkForTuition(tuition.id) : [];
   const activityList = tuition ? getActivityForTuition(tuition.id) : [];
+  const totalClasses = tuition ? getTotalClassCount(tuition.id) : 0;
   const classCount = tuition ? getClassCountForMonth(tuition.id, currentMonth) : 0;
 
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
@@ -123,8 +131,8 @@ export default function TuitionDetailScreen() {
   }
 
   const planned = tuition.plannedClassesPerMonth || 1;
-  const progress = Math.min(classCount / planned, 1);
-  const remaining = Math.max(planned - classCount, 0);
+  const progress = Math.min(totalClasses / planned, 1);
+  const remaining = Math.max(planned - totalClasses, 0);
 
   // Get the current homework being viewed (reactively updates when homework changes)
   const viewingHw = useMemo(() => {
@@ -195,10 +203,15 @@ export default function TuitionDetailScreen() {
       setClassDateError('Please select a date');
       return;
     }
+    
+    // Close dialog immediately for better UX
+    const dateToLog = classDate;
+    closeDialog();
+    
+    // Perform async operation in background
     try {
-      await addClassLog(tuition.id, classDate);
+      await addClassLog(tuition.id, dateToLog);
       setSnackMsg('Class logged');
-      closeDialog();
     } catch (error) {
       setSnackMsg('Failed to add class');
     }
@@ -217,18 +230,23 @@ export default function TuitionDetailScreen() {
 
   const handleAddHomework = async () => {
     if (!validateHw()) return;
+    
+    // Capture values and close dialog immediately
+    const homeworkData = {
+      tuitionId: tuition.id,
+      teacherId: user?.id ?? '',
+      subject: hwSubject.trim(),
+      chapter: hwChapter.trim(),
+      task: hwTask.trim(),
+      dueDate: hwDueDate.trim(),
+      notes: hwNotes.trim() || undefined,
+    };
+    closeDialog();
+    
+    // Perform async operation in background
     try {
-      await addHomework({
-        tuitionId: tuition.id,
-        teacherId: user?.id ?? '',
-        subject: hwSubject.trim(),
-        chapter: hwChapter.trim(),
-        task: hwTask.trim(),
-        dueDate: hwDueDate.trim(),
-        notes: hwNotes.trim() || undefined,
-      });
+      await addHomework(homeworkData);
       setSnackMsg('Homework assigned');
-      closeDialog();
     } catch (error) {
       setSnackMsg('Failed to add homework');
     }
@@ -236,16 +254,22 @@ export default function TuitionDetailScreen() {
 
   const handleEditHomework = async () => {
     if (!editingHw || !validateHw()) return;
+    
+    // Capture values and close dialog immediately
+    const hwId = editingHw.id;
+    const updatedData = {
+      subject: hwSubject.trim(),
+      chapter: hwChapter.trim(),
+      task: hwTask.trim(),
+      dueDate: hwDueDate.trim(),
+      notes: hwNotes.trim() || undefined,
+    };
+    closeDialog();
+    
+    // Perform async operation in background
     try {
-      await updateHomework(editingHw.id, {
-        subject: hwSubject.trim(),
-        chapter: hwChapter.trim(),
-        task: hwTask.trim(),
-        dueDate: hwDueDate.trim(),
-        notes: hwNotes.trim() || undefined,
-      });
+      await updateHomework(hwId, updatedData);
       setSnackMsg('Homework updated');
-      closeDialog();
     } catch (error) {
       setSnackMsg('Failed to update homework');
     }
@@ -268,10 +292,15 @@ export default function TuitionDetailScreen() {
 
   const handleDeleteHomework = async () => {
     if (!deletingHw) return;
+    
+    // Capture value and close dialog immediately
+    const hwId = deletingHw.id;
+    closeDialog();
+    
+    // Perform async operation in background
     try {
-      await deleteHomework(deletingHw.id);
+      await deleteHomework(hwId);
       setSnackMsg('Homework deleted');
-      closeDialog();
     } catch (error) {
       setSnackMsg('Failed to delete homework');
     }
@@ -367,7 +396,7 @@ export default function TuitionDetailScreen() {
             </Text>
             <View style={styles.statsRow}>
               <StatPill label="Planned" value={planned} color={Colors.primary} />
-              <StatPill label="Done" value={classCount} color={Colors.success} />
+              <StatPill label="Done" value={totalClasses} color={Colors.success} />
               <StatPill label="Remaining" value={remaining} color={Colors.warning} />
             </View>
             <ProgressBar
