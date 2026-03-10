@@ -3,11 +3,11 @@ import { Colors, FontFamily } from '@/constants/Colors';
 import { notificationService } from '@/services/notifications';
 import { useAuthStore } from '@/store/authStore';
 import {
-    Poppins_400Regular,
-    Poppins_500Medium,
-    Poppins_600SemiBold,
-    Poppins_700Bold,
-    useFonts,
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+  useFonts,
 } from '@expo-google-fonts/poppins';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -90,8 +90,10 @@ export default function RootLayout() {
         await initializeAuth();
         setIsFirebaseReady(true);
       } catch (error) {
-        console.error('Initialization error:', error);
-        setIsFirebaseReady(false);
+        console.error('❌ Initialization error:', error);
+        // Set as ready even on error so app doesn't get stuck on splash screen
+        // User will see auth screen instead
+        setIsFirebaseReady(true);
       }
     }
     initialize();
@@ -138,6 +140,21 @@ export default function RootLayout() {
 
     setupNotifications();
   }, [isAuthenticated, user?.id]);
+
+  // Hide splash screen when ready
+  useEffect(() => {
+    if (fontsLoaded && isFirebaseReady) {
+      const hideSplash = async () => {
+        try {
+          await SplashScreen.hideAsync();
+          console.log('✅ Splash screen hidden');
+        } catch (error) {
+          console.warn('⚠️ Error hiding splash screen:', error);
+        }
+      };
+      hideSplash();
+    }
+  }, [fontsLoaded, isFirebaseReady]);
 
   // Wait for fonts and Firebase to be ready
   if (!fontsLoaded || !isFirebaseReady) return null;

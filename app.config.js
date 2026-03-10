@@ -5,7 +5,11 @@ module.exports = {
     ...expo,
     android: {
       ...expo.android,
-      googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
+      // Use environment variable if provided, otherwise fallback to the path in app.json
+      googleServicesFile:
+        process.env.GOOGLE_SERVICES_JSON ||
+        expo.android?.googleServicesFile ||
+        "./google-services.json",
     },
   },
 };
