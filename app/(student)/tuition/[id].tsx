@@ -13,7 +13,6 @@ import {
     Chip,
     Dialog,
     Divider,
-    IconButton,
     Portal,
     ProgressBar,
     Snackbar,
@@ -62,7 +61,6 @@ export default function StudentTuitionDetail() {
     getHomeworkForTuition,
     getClassCountForMonth,
     getTotalClassCount,
-    markHomeworkComplete,
     addComment,
     classLogs, // Subscribe to trigger re-renders when class logs change
     homework, // Subscribe to trigger re-renders when homework changes
@@ -103,18 +101,9 @@ export default function StudentTuitionDetail() {
 
   const handleDownloadPDF = async () => {
     try {
-      await generateTuitionPDF(tuition, logs, homeworkList, classCount, planned);
+      await generateTuitionPDF(tuition, logs, homeworkList, totalClasses, planned);
     } catch {
       setSnackMsg('Failed to generate PDF');
-    }
-  };
-
-  const handleToggleComplete = async (hwId: string, currentStatus: boolean) => {
-    try {
-      await markHomeworkComplete(hwId, !currentStatus);
-      setSnackMsg(currentStatus ? 'Homework marked as pending' : 'Homework marked as complete');
-    } catch (error) {
-      setSnackMsg('Failed to update homework status');
     }
   };
 
@@ -278,24 +267,17 @@ export default function StudentTuitionDetail() {
                         </View>
                       </View>
                       <View style={styles.hwActions}>
-                        {hw.completed ? (
-                          <Chip
-                            style={styles.doneChip}
-                            textStyle={{ color: Colors.success, fontSize: FontSize.xs, fontFamily: FontFamily.semibold }}
-                            icon="check-circle"
-                          >
-                            Done
-                          </Chip>
-                        ) : null}
-                        <IconButton
-                          icon={hw.completed ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
-                          iconColor={hw.completed ? Colors.success : Colors.textSecondary}
-                          size={20}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            handleToggleComplete(hw.id, hw.completed);
+                        <Chip
+                          style={hw.completed ? styles.doneChip : styles.pendingChip}
+                          textStyle={{ 
+                            color: hw.completed ? Colors.success : Colors.warning, 
+                            fontSize: FontSize.xs, 
+                            fontFamily: FontFamily.semibold 
                           }}
-                        />
+                          icon={hw.completed ? 'check-circle' : 'clock-outline'}
+                        >
+                          {hw.completed ? 'Done' : 'Pending'}
+                        </Chip>
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -547,6 +529,7 @@ const styles = StyleSheet.create({
   hwActions: { flexDirection: 'row', alignItems: 'center' },
   strikethrough: { textDecorationLine: 'line-through', color: Colors.textTertiary },
   doneChip: { backgroundColor: Colors.successLight, height: 28, alignSelf: 'flex-start' },
+  pendingChip: { backgroundColor: Colors.warningLight, height: 28, alignSelf: 'flex-start' },
   commentsBlock: { marginTop: Spacing.sm, gap: Spacing.xs },
   comment: {
     padding: Spacing.sm,

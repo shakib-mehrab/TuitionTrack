@@ -116,10 +116,11 @@ export default function TeacherDashboard() {
   const handleDownloadReport = async (tuition: Tuition) => {
     const logs = getLogsForTuition(tuition.id);
     const homeworkList = getHomeworkForTuition(tuition.id);
+    const totalClasses = getTotalClassCount(tuition.id);
     const classCount = getClassCountForMonth(tuition.id, currentMonth);
     const planned = tuition.plannedClassesPerMonth || 1;
     try {
-      await generateTuitionPDF(tuition, logs, homeworkList, classCount, planned);
+      await generateTuitionPDF(tuition, logs, homeworkList, totalClasses, planned);
     } catch {
       setSnackMsg('Failed to generate PDF');
     }

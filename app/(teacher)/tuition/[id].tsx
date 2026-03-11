@@ -161,7 +161,7 @@ export default function TuitionDetailScreen() {
 
   const handleDownloadPDF = async () => {
     try {
-      await generateTuitionPDF(tuition, logs, homeworkList, classCount, planned);
+      await generateTuitionPDF(tuition, logs, homeworkList, totalClasses, planned);
     } catch {
       setSnackMsg('Failed to generate PDF');
     }
@@ -313,7 +313,7 @@ export default function TuitionDetailScreen() {
     try {
       await generatePaymentReceipt(
         tuition,
-        classCount,
+        totalClasses,
         planned,
         user.name,
         currentMonth
