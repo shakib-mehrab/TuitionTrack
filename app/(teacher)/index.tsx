@@ -328,7 +328,7 @@ export default function TeacherDashboard() {
               <Text style={styles.boldText}>
                 {selectedTuition?.subject}
               </Text>
-              . The tuition itself will remain intact.
+              {' '}and reset the payment status to Unpaid. The tuition itself will remain intact.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>

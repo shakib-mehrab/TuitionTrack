@@ -326,6 +326,9 @@ export class FirestoreService {
       logs.forEach((doc) => batch.delete(doc.ref));
       await batch.commit();
 
+      // Reset payment status to unpaid
+      await this.updateTuition(tuitionId, { paymentStatus: "not_paid" });
+
       // Add activity log
       await this.addActivityLog(tuitionId, "reset", "Class count reset");
     } catch (error) {
