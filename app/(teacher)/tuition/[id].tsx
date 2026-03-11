@@ -9,20 +9,20 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Clipboard, KeyboardAvoidingView, Platform, ScrollView, Share, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
-    Appbar,
-    Button,
-    Card,
-    Chip,
-    Dialog,
-    Divider,
-    HelperText,
-    IconButton,
-    List,
-    Portal,
-    ProgressBar,
-    Snackbar,
-    Text,
-    TextInput,
+  Appbar,
+  Button,
+  Card,
+  Chip,
+  Dialog,
+  Divider,
+  HelperText,
+  IconButton,
+  List,
+  Portal,
+  ProgressBar,
+  Snackbar,
+  Text,
+  TextInput,
 } from 'react-native-paper';
 
 type DialogMode =
@@ -89,7 +89,9 @@ export default function TuitionDetailScreen() {
   const tuition = getTuitionById(id);
   const currentMonth = new Date().toISOString().slice(0, 7);
   const logs = tuition ? getLogsForTuition(tuition.id) : [];
-  const homeworkList = tuition ? getHomeworkForTuition(tuition.id) : [];
+  const homeworkList = useMemo(() => {
+    return tuition ? getHomeworkForTuition(tuition.id) : [];
+  }, [tuition, getHomeworkForTuition]);
   const activityList = tuition ? getActivityForTuition(tuition.id) : [];
   const totalClasses = tuition ? getTotalClassCount(tuition.id) : 0;
   const classCount = tuition ? getClassCountForMonth(tuition.id, currentMonth) : 0;
@@ -120,6 +122,12 @@ export default function TuitionDetailScreen() {
   const [commentText, setCommentText] = useState('');
   const [isSending, setIsSending] = useState(false);
 
+  // Get the current homework being viewed (reactively updates when homework changes)
+  const viewingHw = useMemo(() => {
+    if (!viewingHwId) return null;
+    return homeworkList.find(hw => hw.id === viewingHwId) || null;
+  }, [viewingHwId, homeworkList]);
+
   if (!tuition) {
     return (
       <View style={styles.centered}>
@@ -133,12 +141,6 @@ export default function TuitionDetailScreen() {
   const planned = tuition.plannedClassesPerMonth || 1;
   const progress = Math.min(totalClasses / planned, 1);
   const remaining = Math.max(planned - totalClasses, 0);
-
-  // Get the current homework being viewed (reactively updates when homework changes)
-  const viewingHw = useMemo(() => {
-    if (!viewingHwId) return null;
-    return homeworkList.find(hw => hw.id === viewingHwId) || null;
-  }, [viewingHwId, homeworkList]);
 
   const closeDialog = () => {
     setDialogMode(null);
@@ -212,7 +214,7 @@ export default function TuitionDetailScreen() {
     try {
       await addClassLog(tuition.id, dateToLog);
       setSnackMsg('Class logged');
-    } catch (error) {
+    } catch {
       setSnackMsg('Failed to add class');
     }
   };
@@ -247,7 +249,7 @@ export default function TuitionDetailScreen() {
     try {
       await addHomework(homeworkData);
       setSnackMsg('Homework assigned');
-    } catch (error) {
+    } catch {
       setSnackMsg('Failed to add homework');
     }
   };
@@ -270,7 +272,7 @@ export default function TuitionDetailScreen() {
     try {
       await updateHomework(hwId, updatedData);
       setSnackMsg('Homework updated');
-    } catch (error) {
+    } catch {
       setSnackMsg('Failed to update homework');
     }
   };
@@ -301,7 +303,7 @@ export default function TuitionDetailScreen() {
     try {
       await deleteHomework(hwId);
       setSnackMsg('Homework deleted');
-    } catch (error) {
+    } catch {
       setSnackMsg('Failed to delete homework');
     }
   };
@@ -316,7 +318,7 @@ export default function TuitionDetailScreen() {
         user.name,
         currentMonth
       );
-    } catch (error) {
+    } catch {
       setSnackMsg('Failed to generate receipt');
     }
   };
@@ -333,7 +335,7 @@ export default function TuitionDetailScreen() {
       });
       setCommentText('');
       setSnackMsg('Comment added');
-    } catch (error) {
+    } catch {
       setSnackMsg('Failed to add comment');
     } finally {
       setIsSending(false);
@@ -689,7 +691,7 @@ export default function TuitionDetailScreen() {
           <Dialog.Title style={GlassDialogTitle}>Delete Homework?</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">
-              Delete "{deletingHw?.chapter}"? This cannot be undone.
+              Delete &quot;{deletingHw?.chapter}&quot;? This cannot be undone.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
@@ -831,10 +833,6 @@ export default function TuitionDetailScreen() {
                 mode={tuition.paymentStatus === s ? 'contained' : 'outlined'}
                 onPress={async () => {
                   try {
-                    if (!tuition.studentId) {
-                      setSnackMsg('No student assigned to this tuition');
-                      return;
-                    }
                     if (!tuition.salary) {
                       setSnackMsg('Please set monthly fee in tuition details');
                       return;
@@ -842,7 +840,7 @@ export default function TuitionDetailScreen() {
                     await updatePaymentStatus(
                       tuition.id,
                       user?.id ?? '',
-                      tuition.studentId,
+                      tuition.studentId || '', // Allow empty studentId
                       currentMonth,
                       s,
                       tuition.salary
