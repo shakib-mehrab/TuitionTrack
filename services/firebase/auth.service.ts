@@ -194,6 +194,10 @@ export class AuthService {
     const code = error.code;
 
     switch (code) {
+      case "firestore/permission-denied":
+        return new Error(
+          "Login is blocked by Firebase security rules. Update Firestore Rules in Firebase Console and try again.",
+        );
       case "auth/email-already-in-use":
         return new Error(
           "This email is already registered. Please login instead.",
