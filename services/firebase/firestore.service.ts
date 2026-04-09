@@ -1,12 +1,12 @@
 import { COLLECTIONS } from "@/config/firebase";
 import { notificationService } from "@/services/notifications";
 import type {
-    ActivityLog,
-    ClassLog,
-    Homework,
-    HomeworkComment,
-    PaymentStatus,
-    Tuition,
+  ActivityLog,
+  ClassLog,
+  Homework,
+  HomeworkComment,
+  PaymentStatus,
+  Tuition,
 } from "@/types";
 import firestore from "@react-native-firebase/firestore";
 
@@ -792,20 +792,8 @@ export class FirestoreService {
       const inviteDoc = invitations.docs[0];
       const invitation = inviteDoc.data() as Invitation;
 
-      // Get the tuition first to check enrollment status
-      const tuitionDoc = await firestore()
-        .collection(COLLECTIONS.TUITIONS)
-        .doc(invitation.tuitionId)
-        .get();
-
-      if (!tuitionDoc.exists) {
-        throw new Error("Tuition not found");
-      }
-
-      const tuition = tuitionDoc.data() as Tuition;
-
       // Check if this student is already enrolled
-      if (tuition.studentId === studentId) {
+      if (invitation.usedBy === studentId) {
         throw new Error("You are already enrolled in this tuition");
       }
 
@@ -816,23 +804,46 @@ export class FirestoreService {
         );
       }
 
-      // Check if tuition already has a different student
-      if (tuition.studentId && tuition.studentId !== studentId) {
-        throw new Error("This tuition already has a student enrolled");
+      const tuitionRef = firestore()
+        .collection(COLLECTIONS.TUITIONS)
+        .doc(invitation.tuitionId);
+
+      // Write tuition assignment first. If this fails, the student is not allowed
+      // to claim this tuition (already assigned or rule mismatch).
+      try {
+        await tuitionRef.update({
+          studentId,
+          studentName,
+          studentEmail,
+        });
+      } catch (error: any) {
+        if (error?.code === "firestore/permission-denied") {
+          throw new Error(
+            "Permission denied while joining this tuition. It may already be assigned to another student.",
+          );
+        }
+
+        throw error;
       }
 
-      // Update tuition with student info
-      await tuitionDoc.ref.update({
-        studentId,
-        studentName,
-        studentEmail,
-      });
+      // Mark invite as used. If this fails, keep enrollment successful and
+      // continue; tuition ownership is the source of truth for access.
+      try {
+        await inviteDoc.ref.update({
+          usedBy: studentId,
+          usedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.warn("Failed to mark invitation as used:", error);
+      }
 
-      // Mark invitation as used
-      await inviteDoc.ref.update({
-        usedBy: studentId,
-        usedAt: new Date().toISOString(),
-      });
+      const tuitionDoc = await tuitionRef.get();
+
+      if (!tuitionDoc.exists) {
+        throw new Error("Tuition not found");
+      }
+
+      const tuition = tuitionDoc.data() as Tuition;
 
       // Send notifications to both student and teacher (non-blocking)
       try {

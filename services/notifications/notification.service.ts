@@ -1,6 +1,10 @@
+import { COLLECTIONS } from "@/config/firebase";
 import firestore from "@react-native-firebase/firestore";
+import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+
+const DEFAULT_NOTIFICATION_CHANNEL_ID = "default";
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -59,12 +63,15 @@ class NotificationService {
   async registerForPushNotifications(): Promise<string | null> {
     try {
       if (Platform.OS === "android") {
-        await Notifications.setNotificationChannelAsync("default", {
-          name: "default",
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: "#EAB308",
-        });
+        await Notifications.setNotificationChannelAsync(
+          DEFAULT_NOTIFICATION_CHANNEL_ID,
+          {
+            name: "default",
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: "#EAB308",
+          },
+        );
       }
 
       const hasPermission = await this.requestPermissions();
@@ -72,8 +79,16 @@ class NotificationService {
         return null;
       }
 
+      const projectId =
+        Constants.expoConfig?.extra?.eas?.projectId ??
+        Constants.easConfig?.projectId;
+
+      if (!projectId) {
+        throw new Error("Expo project ID is missing from app configuration");
+      }
+
       const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: "ed8f80f7-c24c-4925-8c61-94301399eea7",
+        projectId,
       });
 
       return tokenData.data;
@@ -88,10 +103,13 @@ class NotificationService {
    */
   async savePushToken(userId: string, token: string): Promise<void> {
     try {
-      await firestore().collection("users").doc(userId).update({
-        pushToken: token,
-        pushTokenUpdatedAt: firestore.FieldValue.serverTimestamp(),
-      });
+      await firestore().collection(COLLECTIONS.USERS).doc(userId).set(
+        {
+          pushToken: token,
+          pushTokenUpdatedAt: firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
     } catch (error) {
       console.error("Error saving push token:", error);
     }
@@ -114,9 +132,10 @@ class NotificationService {
         body,
         data: data || {},
         priority: "high",
+        channelId: DEFAULT_NOTIFICATION_CHANNEL_ID,
       };
 
-      await fetch("https://exp.host/--/api/v2/push/send", {
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -125,6 +144,20 @@ class NotificationService {
         },
         body: JSON.stringify(message),
       });
+
+      const responseBody = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          `Expo push request failed (${response.status}): ${JSON.stringify(responseBody)}`,
+        );
+      }
+
+      if (responseBody?.data?.status === "error") {
+        throw new Error(
+          `Expo push rejected notification: ${JSON.stringify(responseBody)}`,
+        );
+      }
     } catch (error) {
       console.error("Error sending push notification:", error);
     }
@@ -140,7 +173,10 @@ class NotificationService {
     data?: NotificationData,
   ): Promise<void> {
     try {
-      const userDoc = await firestore().collection("users").doc(userId).get();
+      const userDoc = await firestore()
+        .collection(COLLECTIONS.USERS)
+        .doc(userId)
+        .get();
 
       const pushToken = userDoc.data()?.pushToken;
 
