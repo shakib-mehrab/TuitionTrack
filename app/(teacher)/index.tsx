@@ -75,7 +75,11 @@ export default function TeacherDashboard() {
 
   const activeTuitions = tuitions.filter((t) => t.status === 'active');
   const uniqueStudentIds = new Set(
-    tuitions.filter((t) => t.studentId).map((t) => t.studentId)
+    tuitions.flatMap((t) => {
+      const ids = t.studentIds || [];
+      if (t.studentId && !ids.includes(t.studentId)) ids.push(t.studentId);
+      return ids;
+    })
   );
   const totalSalary = activeTuitions.reduce((sum, t) => sum + (t.salary ?? 0), 0);
 
@@ -160,7 +164,9 @@ export default function TeacherDashboard() {
           <View style={styles.cardHeader}>
             <View style={{ flex: 1 }}>
               <Text variant="titleMedium" style={styles.subject}>
-                {item.studentName ?? 'No student assigned'}
+                {item.enrolledStudents && item.enrolledStudents.length > 0 
+                  ? item.enrolledStudents.map(s => s.name).join(', ')
+                  : item.studentName ?? 'No students assigned'}
               </Text>
               <Text variant="bodySmall" style={styles.studentName}>
                 {item.subject}
@@ -356,7 +362,9 @@ export default function TeacherDashboard() {
               </Text>{' '}
               for{' '}
               <Text style={styles.boldText}>
-                {selectedTuition?.studentName ?? 'unassigned student'}
+                {selectedTuition?.enrolledStudents && selectedTuition.enrolledStudents.length > 0
+                  ? selectedTuition.enrolledStudents.map(s => s.name).join(', ')
+                  : selectedTuition?.studentName ?? 'unassigned class'}
               </Text>
               ? All class logs and homework will be permanently removed.
             </Text>

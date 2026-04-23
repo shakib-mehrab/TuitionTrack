@@ -39,17 +39,14 @@ function HomeworkCard({
   userId,
   userName,
   onAddComment,
-  onToggleComplete,
 }: {
   hw: Homework;
   userId: string;
   userName: string;
   onAddComment: (hwId: string, text: string) => void;
-  onToggleComplete: (hwId: string, currentStatus: boolean) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [menuVisible, setMenuVisible] = useState(false);
 
   const isOverdue = !hw.completed && new Date(hw.dueDate) < new Date();
   const daysLeft = Math.ceil((new Date(hw.dueDate).getTime() - Date.now()) / 86400000);
@@ -97,26 +94,6 @@ function HomeworkCard({
                 {isOverdue ? 'Overdue' : daysLeft >= 0 ? `${daysLeft}d left` : ''}
               </Chip>
             )}
-            <Menu
-              visible={menuVisible}
-              onDismiss={() => setMenuVisible(false)}
-              anchor={
-                <IconButton
-                  icon="dots-vertical"
-                  size={20}
-                  onPress={() => setMenuVisible(true)}
-                />
-              }
-            >
-              <Menu.Item
-                onPress={() => {
-                  onToggleComplete(hw.id, hw.completed);
-                  setMenuVisible(false);
-                }}
-                title={hw.completed ? 'Mark as Pending' : 'Mark as Done'}
-                leadingIcon={hw.completed ? 'checkbox-blank-circle-outline' : 'check-circle'}
-              />
-            </Menu>
           </View>
         </View>
 
@@ -228,14 +205,6 @@ export default function StudentHomeworkScreen() {
     });
   };
 
-  const handleToggleComplete = async (hwId: string, currentStatus: boolean) => {
-    try {
-      await markHomeworkComplete(hwId, !currentStatus);
-    } catch (error) {
-      console.error('Failed to toggle homework status:', error);
-    }
-  };
-
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
@@ -283,7 +252,6 @@ export default function StudentHomeworkScreen() {
             userId={user?.id ?? ''}
             userName={user?.name ?? 'Student'}
             onAddComment={handleAddComment}
-            onToggleComplete={handleToggleComplete}
           />
         )}
       />

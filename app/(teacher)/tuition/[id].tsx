@@ -80,18 +80,18 @@ export default function TuitionDetailScreen() {
     addComment,
     classLogs, // Subscribe to trigger re-renders when class logs change
     homework, // Subscribe to trigger re-renders when homework changes
+    activityLogs, // Subscribe to trigger re-renders when activity logs change
   } = useTeacherStore();
 
   // Prevent ESLint warning - subscriptions are used for reactive updates
   void classLogs;
   void homework;
+  void activityLogs;
 
   const tuition = getTuitionById(id);
   const currentMonth = new Date().toISOString().slice(0, 7);
   const logs = tuition ? getLogsForTuition(tuition.id) : [];
-  const homeworkList = useMemo(() => {
-    return tuition ? getHomeworkForTuition(tuition.id) : [];
-  }, [tuition, getHomeworkForTuition]);
+  const homeworkList = tuition ? getHomeworkForTuition(tuition.id) : [];
   const activityList = tuition ? getActivityForTuition(tuition.id) : [];
   const totalClasses = tuition ? getTotalClassCount(tuition.id) : 0;
   const classCount = tuition ? getClassCountForMonth(tuition.id, currentMonth) : 0;
@@ -348,7 +348,11 @@ export default function TuitionDetailScreen() {
         <Appbar.BackAction onPress={() => router.back()} color={Colors.textOnPrimary} />
         <Appbar.Content
           title={tuition.subject}
-          subtitle={tuition.studentName ?? 'No student'}
+          subtitle={
+            tuition.enrolledStudents && tuition.enrolledStudents.length > 0
+              ? tuition.enrolledStudents.map((s) => s.name).join(', ')
+              : tuition.studentName ?? 'No student'
+          }
           titleStyle={styles.appbarTitle}
           subtitleStyle={styles.appbarSubtitle}
         />

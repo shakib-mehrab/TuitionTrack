@@ -47,20 +47,18 @@ export function DatePickerInput({
 
   return (
     <>
-      <Pressable onPress={() => setShow(true)}>
-        <TextInput
-          mode="outlined"
-          label={label}
-          value={formatDisplayDate(value)}
-          editable={false}
-          right={<TextInput.Icon icon="calendar" />}
-          outlineColor={outlineColor}
-          activeOutlineColor={activeOutlineColor}
-          style={style}
-          error={!!error}
-          pointerEvents="none"
-        />
-      </Pressable>
+      <TextInput
+        mode="outlined"
+        label={label}
+        value={formatDisplayDate(value)}
+        editable={false}
+        right={<TextInput.Icon icon="calendar" onPress={() => setShow(true)} />}
+        outlineColor={outlineColor}
+        activeOutlineColor={activeOutlineColor}
+        style={style}
+        error={!!error}
+        onPressIn={() => setShow(true)}
+      />
       {show && (
         <DateTimePicker
           value={date}
@@ -128,20 +126,18 @@ export function TimePickerInput({
 
   return (
     <>
-      <Pressable onPress={() => setShow(true)}>
-        <TextInput
-          mode="outlined"
-          label={label}
-          value={value}
-          editable={false}
-          right={<TextInput.Icon icon="clock-outline" />}
-          outlineColor={outlineColor}
-          activeOutlineColor={activeOutlineColor}
-          style={style}
-          error={!!error}
-          pointerEvents="none"
-        />
-      </Pressable>
+      <TextInput
+        mode="outlined"
+        label={label}
+        value={value}
+        editable={false}
+        right={<TextInput.Icon icon="clock-outline" onPress={() => setShow(true)} />}
+        outlineColor={outlineColor}
+        activeOutlineColor={activeOutlineColor}
+        style={style}
+        error={!!error}
+        onPressIn={() => setShow(true)}
+      />
       {show && (
         <DateTimePicker
           value={time}

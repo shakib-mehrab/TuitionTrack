@@ -62,6 +62,7 @@ export default function StudentTuitionDetail() {
     getClassCountForMonth,
     getTotalClassCount,
     addComment,
+    markHomeworkComplete,
     classLogs, // Subscribe to trigger re-renders when class logs change
     homework, // Subscribe to trigger re-renders when homework changes
   } = useStudentStore();
@@ -104,6 +105,15 @@ export default function StudentTuitionDetail() {
       await generateTuitionPDF(tuition, logs, homeworkList, totalClasses, planned);
     } catch {
       setSnackMsg('Failed to generate PDF');
+    }
+  };
+
+  const handleToggleComplete = async (hwId: string, currentStatus: boolean) => {
+    try {
+      await markHomeworkComplete(hwId, !currentStatus);
+      setSnackMsg(!currentStatus ? 'Homework marked as Done' : 'Homework marked as Pending');
+    } catch {
+      setSnackMsg('Failed to update homework status');
     }
   };
 
@@ -406,17 +416,6 @@ export default function StudentTuitionDetail() {
               setCommentText('');
             }}>
               Close
-            </Button>
-            <Button 
-              mode="contained" 
-              icon={viewingHw?.completed ? 'checkbox-blank-circle-outline' : 'check-circle'}
-              onPress={() => {
-                if (viewingHw) {
-                  handleToggleComplete(viewingHw.id, viewingHw.completed);
-                }
-              }}
-            >
-              Mark as {viewingHw?.completed ? 'Pending' : 'Done'}
             </Button>
           </Dialog.Actions>
         </Dialog>

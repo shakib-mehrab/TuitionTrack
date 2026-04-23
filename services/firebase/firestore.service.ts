@@ -92,9 +92,19 @@ export class FirestoreService {
         createdAt: new Date().toISOString(),
       };
 
-      // Remove undefined values before writing to Firestore
-      const cleanedTuition = removeUndefined(tuition);
-      await tuitionRef.set(cleanedTuition);
+      // Write to Firestore with student fields explicitly set to null (not omitted).
+      // The Firestore rule isNullOrEmpty() checks `value == null || value == ''`.
+      // If these keys are absent from the document, the rule can behave
+      // inconsistently — always writing null guarantees the check works reliably.
+      // We inject null only into the raw write payload (untyped) to avoid
+      // a TS conflict with the `string | undefined` fields on the Tuition type.
+      const firestorePayload = {
+        ...removeUndefined(tuition),
+        studentId: tuition.studentId ?? null,
+        studentName: tuition.studentName ?? null,
+        studentEmail: tuition.studentEmail ?? null,
+      };
+      await tuitionRef.set(firestorePayload);
 
       // Create activity log
       await this.addActivityLog(
@@ -205,6 +215,7 @@ export class FirestoreService {
 
   /**
    * Get tuitions for a student (real-time)
+   * Supports both legacy single-student `studentId` and new multi-student `studentIds` array.
    */
   static subscribeToStudentTuitions(
     studentId: string,
@@ -212,7 +223,12 @@ export class FirestoreService {
   ): () => void {
     return firestore()
       .collection(COLLECTIONS.TUITIONS)
-      .where("studentId", "==", studentId)
+      .where(
+        firestore.Filter.or(
+          firestore.Filter("studentId", "==", studentId),
+          firestore.Filter("studentIds", "array-contains", studentId)
+        )
+      )
       .onSnapshot(
         (snapshot) => {
           const tuitions = snapshot.docs
@@ -339,12 +355,15 @@ export class FirestoreService {
 
   /**
    * Subscribe to class logs for a tuition (real-time)
+   * Includes a retry mechanism for transient permission-denied errors that can
+   * occur due to Firestore rules evaluator cache lag immediately after joining a tuition.
    */
   static subscribeToClassLogs(
     tuitionId: string,
     callback: (logs: ClassLog[]) => void,
+    retryCount = 0,
   ): () => void {
-    return firestore()
+    let unsub = firestore()
       .collection(COLLECTIONS.CLASS_LOGS)
       .where("tuitionId", "==", tuitionId)
       .onSnapshot(
@@ -358,10 +377,19 @@ export class FirestoreService {
             );
           callback(logs);
         },
-        (error) => {
+        (error: any) => {
+          if (error.code === "firestore/permission-denied" && retryCount < 3) {
+            console.log(`Class logs subscribe denied (cache lag). Retrying in 2s... (${retryCount + 1}/3)`);
+            setTimeout(() => {
+              unsub = this.subscribeToClassLogs(tuitionId, callback, retryCount + 1);
+            }, 2000);
+            return;
+          }
           console.error("Subscribe to class logs error:", error);
         },
       );
+    
+    return () => unsub();
   }
 
   // ============================================================
@@ -483,12 +511,14 @@ export class FirestoreService {
 
   /**
    * Subscribe to homework for a tuition (real-time)
+   * Includes a retry mechanism for transient permission-denied errors.
    */
   static subscribeToHomework(
     tuitionId: string,
     callback: (homework: Homework[]) => void,
+    retryCount = 0,
   ): () => void {
-    return firestore()
+    let unsub = firestore()
       .collection(COLLECTIONS.HOMEWORK)
       .where("tuitionId", "==", tuitionId)
       .onSnapshot(
@@ -502,10 +532,19 @@ export class FirestoreService {
             );
           callback(homework);
         },
-        (error) => {
+        (error: any) => {
+          if (error.code === "firestore/permission-denied" && retryCount < 3) {
+            console.log(`Homework subscribe denied (cache lag). Retrying in 2s... (${retryCount + 1}/3)`);
+            setTimeout(() => {
+              unsub = this.subscribeToHomework(tuitionId, callback, retryCount + 1);
+            }, 2000);
+            return;
+          }
           console.error("Subscribe to homework error:", error);
         },
       );
+
+    return () => unsub();
   }
 
   /**
@@ -706,31 +745,42 @@ export class FirestoreService {
   }
 
   /**
-   * Subscribe to activity logs for a tuition (real-time)
+   * Subscribe to activity logs (real-time)
+   * Includes a retry mechanism for transient permission-denied errors.
    */
   static subscribeToActivityLogs(
     tuitionId: string,
     callback: (logs: ActivityLog[]) => void,
+    retryCount = 0,
   ): () => void {
-    return firestore()
+    let unsub = firestore()
       .collection(COLLECTIONS.ACTIVITY_LOGS)
       .where("tuitionId", "==", tuitionId)
       .limit(50)
       .onSnapshot(
         (snapshot) => {
-          const logs = snapshot.docs
-            .map((doc) => doc.data() as ActivityLog)
-            .sort(
-              (a, b) =>
-                new Date(b.timestamp).getTime() -
-                new Date(a.timestamp).getTime(),
-            );
+          const logs = snapshot.docs.map(
+            (doc) =>
+              ({
+                id: doc.id,
+                ...doc.data(),
+              }) as ActivityLog,
+          );
           callback(logs);
         },
-        (error) => {
+        (error: any) => {
+          if (error.code === "firestore/permission-denied" && retryCount < 3) {
+            console.log(`Activity logs subscribe denied (cache lag). Retrying in 2s... (${retryCount + 1}/3)`);
+            setTimeout(() => {
+              unsub = this.subscribeToActivityLogs(tuitionId, callback, retryCount + 1);
+            }, 2000);
+            return;
+          }
           console.error("Subscribe to activity logs error:", error);
         },
       );
+
+    return () => unsub();
   }
 
   // ============================================================
@@ -745,18 +795,29 @@ export class FirestoreService {
     teacherId: string,
   ): Promise<string> {
     try {
+      // First check if an invitation already exists for this tuition
+      const existingInvites = await firestore()
+        .collection(COLLECTIONS.INVITATIONS)
+        .where("tuitionId", "==", tuitionId)
+        .limit(1)
+        .get();
+
+      if (!existingInvites.empty) {
+        // Return existing code
+        return existingInvites.docs[0].data().code;
+      }
+
       // Generate 6-character code
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
       const inviteRef = firestore().collection(COLLECTIONS.INVITATIONS).doc();
-      const invitation: Invitation = {
+      const invitation = {
         id: inviteRef.id,
         code,
         tuitionId,
         teacherId,
         createdAt: new Date().toISOString(),
-        usedBy: null,
-        usedAt: null,
+        isPermanent: true, // Mark as permanent code
       };
 
       await inviteRef.set(invitation);
@@ -792,69 +853,101 @@ export class FirestoreService {
       const inviteDoc = invitations.docs[0];
       const invitation = inviteDoc.data() as Invitation;
 
-      // Check if this student is already enrolled
-      if (invitation.usedBy === studentId) {
-        throw new Error("You are already enrolled in this tuition");
-      }
-
-      // Check if invitation was used by someone else
-      if (invitation.usedBy && invitation.usedBy !== studentId) {
-        throw new Error(
-          "This invitation code has already been used by another student",
-        );
-      }
-
+      // Attempt to assign the student using arrays (Google Classroom style)
+      // while maintaining backward compatibility
+      
       const tuitionRef = firestore()
         .collection(COLLECTIONS.TUITIONS)
         .doc(invitation.tuitionId);
 
-      // Write tuition assignment first. If this fails, the student is not allowed
-      // to claim this tuition (already assigned or rule mismatch).
+      let enrolledTuitionData: Tuition | null = null;
+
       try {
-        await tuitionRef.update({
-          studentId,
-          studentName,
-          studentEmail,
+        await firestore().runTransaction(async (transaction) => {
+          const tuitionSnap = await transaction.get(tuitionRef);
+
+          if (!tuitionSnap.exists) {
+            throw new Error("Tuition not found. The invitation may be invalid.");
+          }
+
+          const data = tuitionSnap.data() as Tuition;
+          
+          // Backward compatibility: Extract existing legacy student if any
+          const existingStudentIds = data.studentIds || [];
+          if (data.studentId && !existingStudentIds.includes(data.studentId)) {
+            existingStudentIds.push(data.studentId);
+          }
+
+          const existingEnrolled = data.enrolledStudents || [];
+          if (data.studentId && data.studentName && data.studentEmail && !existingEnrolled.find(s => s.id === data.studentId)) {
+            existingEnrolled.push({
+              id: data.studentId,
+              name: data.studentName,
+              email: data.studentEmail
+            });
+          }
+
+          // Check if already enrolled
+          if (existingStudentIds.includes(studentId)) {
+            // Already enrolled — idempotent, no write needed.
+            enrolledTuitionData = data;
+            return;
+          }
+
+          // Add the new student
+          const newStudentIds = [...existingStudentIds, studentId];
+          const newEnrolledStudents = [
+            ...existingEnrolled,
+            { id: studentId, name: studentName, email: studentEmail }
+          ];
+
+          // We update the arrays. We MUST also touch the legacy `studentId` fields if they
+          // are currently empty/null so the Firestore rule `isStudentSelfAssignOnTuition` passes.
+          // In the new Firestore rules, we will authorize array updates.
+          const updatePayload: any = {
+            studentIds: newStudentIds,
+            enrolledStudents: newEnrolledStudents,
+          };
+
+          // If it's a brand new tuition with no students, set the legacy fields too
+          // to satisfy the old `isNullOrEmpty(studentId)` strict rule requirement
+          // before the new rules are deployed.
+          if (!data.studentId) {
+            updatePayload.studentId = studentId;
+            updatePayload.studentName = studentName;
+            updatePayload.studentEmail = studentEmail;
+          }
+
+          transaction.update(tuitionRef, updatePayload);
+          enrolledTuitionData = { ...data, ...updatePayload };
         });
       } catch (error: any) {
+        // If it throws permission-denied, it means the Firestore rules haven't been updated yet
+        // to support array writes. 
         if (error?.code === "firestore/permission-denied") {
-          throw new Error(
-            "Permission denied while joining this tuition. It may already be assigned to another student.",
-          );
+           throw new Error(
+             "Permission denied. The teacher needs to update their database rules to support multiple students.",
+           );
         }
-
         throw error;
       }
 
-      // Mark invite as used. If this fails, keep enrollment successful and
-      // continue; tuition ownership is the source of truth for access.
-      try {
-        await inviteDoc.ref.update({
-          usedBy: studentId,
-          usedAt: new Date().toISOString(),
-        });
-      } catch (error) {
-        console.warn("Failed to mark invitation as used:", error);
+      // No longer marking the invitation as "used" because it is permanent!
+
+      if (!enrolledTuitionData) {
+        throw new Error("Tuition not found after enrollment.");
       }
 
-      const tuitionDoc = await tuitionRef.get();
-
-      if (!tuitionDoc.exists) {
-        throw new Error("Tuition not found");
-      }
-
-      const tuition = tuitionDoc.data() as Tuition;
+      const tuition = enrolledTuitionData as Tuition;
 
       // Send notifications to both student and teacher (non-blocking)
       try {
-        // Get teacher name
         const teacherDoc = await firestore()
           .collection(COLLECTIONS.USERS)
           .doc(tuition.teacherId)
           .get();
         const teacherName = teacherDoc.data()?.name || "Teacher";
 
-        // Notify student about enrollment confirmation
         await notificationService.sendEnrollmentConfirmedNotification(
           studentId,
           tuition.subject,
@@ -862,7 +955,6 @@ export class FirestoreService {
           invitation.tuitionId,
         );
 
-        // Notify teacher about new student
         await notificationService.sendNewStudentEnrolledNotification(
           tuition.teacherId,
           studentName,
@@ -873,7 +965,7 @@ export class FirestoreService {
         console.warn("Failed to send enrollment notifications:", notifError);
       }
 
-      return { ...tuition, studentId, studentName, studentEmail };
+      return tuition;
     } catch (error: any) {
       console.error("Join tuition error:", error);
       // If it's already an Error with our custom message, rethrow it

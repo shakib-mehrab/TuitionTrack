@@ -1,27 +1,17 @@
 /**
  * Firebase Configuration
  *
- * Using environment variables for security.
- * Values are loaded from .env file (not committed to git)
+ * Using Expo's built-in environment variable support.
+ * Variables prefixed with EXPO_PUBLIC_ in .env are automatically available.
  */
 
-import {
-    FIREBASE_API_KEY,
-    FIREBASE_APP_ID,
-    FIREBASE_AUTH_DOMAIN,
-    FIREBASE_MESSAGING_SENDER_ID,
-    FIREBASE_PROJECT_ID,
-    FIREBASE_STORAGE_BUCKET,
-    GOOGLE_WEB_CLIENT_ID,
-} from "@env";
-
 export const firebaseConfig = {
-  apiKey: FIREBASE_API_KEY,
-  authDomain: FIREBASE_AUTH_DOMAIN,
-  projectId: FIREBASE_PROJECT_ID,
-  storageBucket: FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
-  appId: FIREBASE_APP_ID,
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
 /**
@@ -54,5 +44,5 @@ export const CONFIG = {
   ENABLE_OFFLINE_PERSISTENCE: true,
   EMAIL_VERIFICATION_REQUIRED: true,
   ENABLE_FILE_UPLOADS: false, // Set to true if Firebase Storage is enabled
-  GOOGLE_WEB_CLIENT_ID,
+  GOOGLE_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
 } as const;

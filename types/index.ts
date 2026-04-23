@@ -26,9 +26,17 @@ export interface Tuition {
   datesPerWeek: number;
   plannedClassesPerMonth: number;
   // Student info — optional, can be added later
+  // Student info — legacy backward compatibility fields
   studentName?: string;
   studentEmail?: string;
-  studentId?: string; // populated when student accepts invite
+  studentId?: string; 
+  // Multi-student fields (Google Classroom style)
+  studentIds?: string[];
+  enrolledStudents?: {
+    id: string;
+    name: string;
+    email: string;
+  }[];
   salary?: number; // monthly tuition fee
   // Status
   status: TuitionStatus;
