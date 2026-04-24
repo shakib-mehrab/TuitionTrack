@@ -33,6 +33,58 @@ function paymentLabel(status: string) {
   return 'Unpaid';
 }
 
+function StatTile({
+  icon, iconBg, iconColor, value, label, borderColor,
+}: {
+  icon: string; iconBg: string; iconColor: string; value: string; label: string; borderColor: string;
+}) {
+  return (
+    <View style={[tileStyles.tile, { borderColor }]}>
+      <View style={[tileStyles.iconBox, { backgroundColor: iconBg }]}>
+        <MaterialCommunityIcons name={icon as any} size={20} color={iconColor} />
+      </View>
+      <Text style={[tileStyles.value, { color: iconColor }]}>{value}</Text>
+      <Text style={tileStyles.label}>{label}</Text>
+    </View>
+  );
+}
+
+const tileStyles = StyleSheet.create({
+  tile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    backgroundColor: Colors.surface,
+    gap: Spacing.xs,
+  },
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  value: {
+    fontSize: FontSize.lg,
+    fontFamily: FontFamily.bold,
+    lineHeight: 22,
+  },
+  label: {
+    fontSize: 10,
+    fontFamily: FontFamily.medium,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+});
+
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+
 export default function StudentDashboard() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
@@ -97,19 +149,32 @@ export default function StudentDashboard() {
 
   const ListHeader = () => (
     <>
+      {/* ── Stat Tiles ── */}
       <View style={styles.statsRow}>
-        <Surface style={[styles.statCard, { backgroundColor: Colors.primaryMuted }]} elevation={0}>
-          <Text style={styles.statValue}>{myTuitions.length}</Text>
-          <Text style={styles.statLabel}>Tuitions</Text>
-        </Surface>
-        <Surface style={[styles.statCard, { backgroundColor: Colors.successLight }]} elevation={0}>
-          <Text style={styles.statValue}>{uniqueTeachers.size}</Text>
-          <Text style={styles.statLabel}>Teachers</Text>
-        </Surface>
-        <Surface style={[styles.statCard, { backgroundColor: Colors.warningLight }]} elevation={0}>
-          <Text style={styles.statValue}>{pendingHomework}</Text>
-          <Text style={styles.statLabel}>{'Pending\nHomework'}</Text>
-        </Surface>
+        <StatTile
+          icon="book-education-outline"
+          iconBg={Colors.primary + '18'}
+          iconColor={Colors.primary}
+          value={String(myTuitions.length)}
+          label="Tuitions"
+          borderColor={Colors.primary + '40'}
+        />
+        <StatTile
+          icon="account-tie-outline"
+          iconBg={Colors.success + '18'}
+          iconColor={Colors.success}
+          value={String(uniqueTeachers.size)}
+          label="Teachers"
+          borderColor={Colors.success + '40'}
+        />
+        <StatTile
+          icon="notebook-edit-outline"
+          iconBg={Colors.warning + '18'}
+          iconColor={Colors.warning}
+          value={String(pendingHomework)}
+          label="Homework"
+          borderColor={Colors.warning + '40'}
+        />
       </View>
 
       <Button
@@ -129,10 +194,10 @@ export default function StudentDashboard() {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.Content
-          title={`Hello, ${user?.name ?? 'Student'}`}
+          title={user?.name ? user.name.trim().split(' ').slice(-1)[0] : 'Student'}
           titleStyle={styles.appbarTitle}
         />
-        <Appbar.Action icon="logout" onPress={logout} color={Colors.textOnPrimary} />
+        <Appbar.Action icon="logout" onPress={logout} color={Colors.textPrimary} />
       </Appbar.Header>
 
       <FlatList
@@ -155,12 +220,7 @@ export default function StudentDashboard() {
             <Card style={styles.card} mode="elevated">
               <Card.Content>
                 <View style={styles.cardHeader}>
-                  <View style={styles.subjectAvatar}>
-                    <Text style={styles.subjectAvatarText}>
-                      {item.subject.charAt(0)}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1, marginLeft: Spacing.md }}>
+                  <View style={{ flex: 1 }}>
                     <Text variant="titleMedium" style={styles.subject}>
                       {item.subject}
                     </Text>
@@ -218,31 +278,41 @@ export default function StudentDashboard() {
 
       <Portal>
         <Dialog visible={showJoinDialog} onDismiss={() => setShowJoinDialog(false)} style={GlassDialog}>
-          <Dialog.Title style={GlassDialogTitle}>Join Tuition</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium" style={{ color: Colors.textSecondary, marginBottom: Spacing.md }}>
-              Enter the invite code provided by your teacher
-            </Text>
+          <View style={styles.dialogHeader}>
+            <View style={styles.dialogIconBadge}>
+              <MaterialCommunityIcons name="account-plus-outline" size={22} color={Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.dialogTitle}>Join Tuition</Text>
+              <Text style={styles.dialogSubtitle}>Enter the code from your teacher</Text>
+            </View>
+          </View>
+          <Dialog.Content style={styles.dialogContent}>
+            <Text style={styles.fieldLabel}>Invite Code</Text>
             <TextInput
-              label="Invite Code"
               value={inviteCode}
               onChangeText={(text) => {
                 setInviteCode(text.toUpperCase());
                 setCodeError('');
               }}
               mode="outlined"
+              placeholder="e.g. AB12XY"
               autoCapitalize="characters"
               maxLength={6}
               error={!!codeError}
               disabled={isJoining}
+              outlineColor={Colors.border}
+              activeOutlineColor={Colors.primary}
+              outlineStyle={{ borderRadius: BorderRadius.md }}
+              style={{ backgroundColor: Colors.surface }}
             />
             {codeError ? <HelperText type="error" visible>{codeError}</HelperText> : null}
           </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowJoinDialog(false)} disabled={isJoining}>
+          <Dialog.Actions style={styles.dialogActions}>
+            <Button mode="text" textColor={Colors.textSecondary} onPress={() => setShowJoinDialog(false)} disabled={isJoining}>
               Cancel
             </Button>
-            <Button mode="contained" onPress={handleJoinTuition} loading={isJoining} disabled={isJoining}>
+            <Button mode="contained" buttonColor={Colors.primary} onPress={handleJoinTuition} loading={isJoining} disabled={isJoining} style={{ borderRadius: BorderRadius.md }}>
               Join
             </Button>
           </Dialog.Actions>
@@ -264,12 +334,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   appbar: { backgroundColor: Colors.backgroundDeep },
   appbarTitle: {
-    color: Colors.textOnPrimary,
+    color: Colors.textPrimary,
     fontSize: FontSize.lg,
     fontFamily: FontFamily.semibold,
   },
-  listContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
+  listContent: { padding: Spacing.lg, paddingBottom: 100 },
+  statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
   statCard: {
     flex: 1,
     padding: Spacing.md,
@@ -291,7 +361,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 2,
   },
-  hwButton: { marginBottom: Spacing.xl, borderRadius: BorderRadius.lg },
+  hwButton: { marginBottom: Spacing.xl, borderRadius: BorderRadius.lg, backgroundColor: Colors.primary + '10' },
   sectionTitle: {
     fontFamily: FontFamily.semibold,
     color: Colors.textPrimary,
@@ -305,21 +375,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.sm },
-  subjectAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.primary + '55',
-  },
-  subjectAvatarText: {
-    fontSize: FontSize.xl,
-    fontFamily: FontFamily.bold,
-    color: Colors.primaryLight,
-  },
   subject: { fontFamily: FontFamily.semibold, color: Colors.textPrimary },
   timeText: { color: Colors.textSecondary, marginTop: 2, fontFamily: FontFamily.regular },
   paymentBadge: {
@@ -338,6 +393,51 @@ const styles = StyleSheet.create({
   progressLabel: { color: Colors.textSecondary, fontFamily: FontFamily.regular },
   progressPct: { color: Colors.textSecondary, fontFamily: FontFamily.medium },
   progressBar: { height: 6, borderRadius: 3, backgroundColor: Colors.border },
+  dialogHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.lg,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  dialogIconBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dialogTitle: {
+    fontSize: FontSize.base,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textPrimary,
+  },
+  dialogSubtitle: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.regular,
+    color: Colors.textTertiary,
+    marginTop: 1,
+  },
+  dialogContent: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
+  fieldLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+    marginTop: Spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  dialogActions: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: Spacing.sm,
+  },
   emptyText: {
     textAlign: 'center',
     color: Colors.textSecondary,

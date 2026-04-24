@@ -1,5 +1,6 @@
 import { initializeFirebase } from '@/config';
 import { Colors, FontFamily } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { notificationService } from '@/services/notifications';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -12,9 +13,9 @@ import {
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { MD3DarkTheme, PaperProvider, configureFonts } from 'react-native-paper';
+import { MD3DarkTheme, MD3LightTheme, PaperProvider, configureFonts } from 'react-native-paper';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,39 +39,13 @@ const fontConfig = {
   bodySmall:      { fontFamily: FontFamily.regular,  fontSize: 12, lineHeight: 16 },
 };
 
-// ── Paper dark theme with brand colours ──────────────────────────────────────
-const paperTheme = {
-  ...MD3DarkTheme,
-  colors: {
-    ...MD3DarkTheme.colors,
-    primary:          Colors.primary,
-    secondary:        Colors.accent,
-    background:       Colors.background,
-    surface:          Colors.surface,
-    surfaceVariant:   Colors.surfaceVariant,
-    error:            Colors.error,
-    onBackground:     Colors.textPrimary,
-    onSurface:        Colors.textPrimary,
-    onSurfaceVariant: Colors.textSecondary,
-    outline:          Colors.border,
-    scrim:            'rgba(0, 0, 10, 0.78)',   // dark glassmorphic backdrop
-    // Elevation surfaces — dialog uses level3
-    elevation: {
-      ...MD3DarkTheme.colors.elevation,
-      level1: 'rgba(18, 18, 42, 0.94)',
-      level2: 'rgba(15, 15, 36, 0.96)',
-      level3: 'rgba(13, 13, 30, 0.97)',   // dialogs
-      level4: 'rgba(10, 10, 24, 0.98)',
-      level5: 'rgba(8, 8, 20, 0.99)',
-    },
-  },
-  fonts: configureFonts({ config: fontConfig }),
-};
+const fonts = configureFonts({ config: fontConfig });
 
 export default function RootLayout() {
   const { isAuthenticated, user, initializeAuth } = useAuthStore();
   const segments = useSegments();
   const router   = useRouter();
+  const scheme = useColorScheme();
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -92,7 +67,6 @@ export default function RootLayout() {
       } catch (error) {
         console.error('❌ Initialization error:', error);
         // Set as ready even on error so app doesn't get stuck on splash screen
-        // User will see auth screen instead
         setIsFirebaseReady(true);
       }
     }
@@ -134,7 +108,6 @@ export default function RootLayout() {
         }
       } catch (error) {
         console.warn('Failed to setup push notifications:', error);
-        // Non-blocking - app continues to work even if notifications fail
       }
     }
 
@@ -156,14 +129,49 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, isFirebaseReady]);
 
-  // Wait for fonts and Firebase to be ready
+  // Dynamic Theme Generation
+  const paperTheme = useMemo(() => {
+    const isDark = scheme === 'dark';
+    const baseTheme = isDark ? MD3DarkTheme : MD3LightTheme;
+    const themeColors = isDark ? Colors.dark : Colors.light;
+
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        primary:          themeColors.primary,
+        secondary:        themeColors.accent,
+        background:       themeColors.background,
+        surface:          themeColors.surface,
+        surfaceVariant:   themeColors.surfaceVariant,
+        error:            themeColors.error,
+        onBackground:     themeColors.textPrimary,
+        onSurface:        themeColors.textPrimary,
+        onSurfaceVariant: themeColors.textSecondary,
+        outline:          themeColors.border,
+        scrim:            isDark ? 'rgba(0, 0, 10, 0.78)' : 'rgba(0, 0, 0, 0.3)',
+        elevation: {
+          ...baseTheme.colors.elevation,
+          ...(isDark ? {
+            level1: 'rgba(18, 18, 42, 0.94)',
+            level2: 'rgba(15, 15, 36, 0.96)',
+            level3: 'rgba(13, 13, 30, 0.97)',
+            level4: 'rgba(10, 10, 24, 0.98)',
+            level5: 'rgba(8, 8, 20, 0.99)',
+          } : {}),
+        },
+      },
+      fonts,
+    };
+  }, [scheme]);
+
   if (!fontsLoaded || !isFirebaseReady) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <PaperProvider theme={paperTheme}>
-        <StatusBar style="light" />
-        <Stack screenOptions={{ headerShown: false }}>
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: paperTheme.colors.background } }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(teacher)" />
           <Stack.Screen name="(student)" />

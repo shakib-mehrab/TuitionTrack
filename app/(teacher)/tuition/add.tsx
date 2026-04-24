@@ -2,14 +2,13 @@ import { TimePickerInput } from '@/components/ui/DateTimePicker';
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/Colors';
 import { useAuthStore } from '@/store/authStore';
 import { useTeacherStore } from '@/store/teacherStore';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
     Appbar,
     Button,
-    Chip,
-    Divider,
     HelperText,
     Text,
     TextInput,
@@ -53,7 +52,6 @@ export default function AddTuitionScreen() {
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    
     setIsSubmitting(true);
     try {
       const schedule = selectedDays.join(', ');
@@ -72,7 +70,7 @@ export default function AddTuitionScreen() {
         paymentStatus: 'not_paid',
       });
       router.back();
-    } catch (error) {
+    } catch {
       setErrors({ submit: 'Failed to create tuition. Please try again.' });
     } finally {
       setIsSubmitting(false);
@@ -82,13 +80,13 @@ export default function AddTuitionScreen() {
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => router.back()} color={Colors.textOnPrimary} />
-        <Appbar.Content title="Add Tuition" titleStyle={styles.appbarTitle} />
+        <Appbar.BackAction onPress={() => router.back()} color={Colors.textPrimary} />
+        <Appbar.Content title="New Tuition" titleStyle={styles.appbarTitle} />
       </Appbar.Header>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
@@ -96,171 +94,276 @@ export default function AddTuitionScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        {/* Subject */}
-        <Text variant="labelLarge" style={styles.sectionLabel}>Subject *</Text>
-        <TextInput
-          mode="outlined"
-          label="e.g. Mathematics, Physics, Hindi…"
-          value={subject}
-          onChangeText={(v) => { setSubject(v); setErrors((e) => ({ ...e, subject: '' })); }}
-          outlineColor={Colors.border}
-          activeOutlineColor={Colors.primary}
-          style={styles.input}
-        />
-        {errors.subject && <HelperText type="error">{errors.subject}</HelperText>}
 
-        <Divider style={styles.divider} />
-
-        {/* Days */}
-        <Text variant="labelLarge" style={styles.sectionLabel}>Schedule *</Text>
-        <View style={styles.chipRow}>
-          {DAYS.map((day) => (
-            <Chip
-              key={day}
-              selected={selectedDays.includes(day)}
-              onPress={() => toggleDay(day)}
-              style={[styles.chip, selectedDays.includes(day) && styles.chipSelected]}
-              textStyle={selectedDays.includes(day) ? styles.chipTextSelected : styles.chipText}
-            >
-              {day}
-            </Chip>
-          ))}
-        </View>
-        {errors.days && <HelperText type="error">{errors.days}</HelperText>}
-
-        <Divider style={styles.divider} />
-
-        {/* Times */}
-        <Text variant="labelLarge" style={styles.sectionLabel}>Class Times *</Text>
-        <View style={styles.timeRow}>
-          <View style={{ flex: 1 }}>
-            <TimePickerInput
-              label="Start Time"
-              value={startTime}
-              onChangeTime={setStartTime}
+          {/* ── Subject ── */}
+          <FormSection icon="book-education-outline" title="Subject" required>
+            <TextInput
+              mode="outlined"
+              placeholder="e.g. Mathematics, Physics…"
+              value={subject}
+              onChangeText={(v) => { setSubject(v); setErrors((e) => ({ ...e, subject: '' })); }}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
               style={styles.input}
+              outlineStyle={styles.inputOutline}
             />
-            {errors.startTime && <HelperText type="error">{errors.startTime}</HelperText>}
-          </View>
-          <View style={{ width: Spacing.md }} />
-          <View style={{ flex: 1 }}>
-            <TimePickerInput
-              label="End Time"
-              value={endTime}
-              onChangeTime={setEndTime}
+            {errors.subject && <HelperText type="error">{errors.subject}</HelperText>}
+          </FormSection>
+
+          {/* ── Schedule ── */}
+          <FormSection icon="calendar-week" title="Class Days" required error={errors.days}>
+            <View style={styles.daysRow}>
+              {DAYS.map((day) => {
+                const selected = selectedDays.includes(day);
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    onPress={() => { toggleDay(day); setErrors((e) => ({ ...e, days: '' })); }}
+                    style={[styles.dayChip, selected && styles.dayChipSelected]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.dayChipText, selected && styles.dayChipTextSelected]}>
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {errors.days && <HelperText type="error">{errors.days}</HelperText>}
+          </FormSection>
+
+          {/* ── Times ── */}
+          <FormSection icon="clock-outline" title="Class Times" required>
+            <View style={styles.timeRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Start Time</Text>
+                <TimePickerInput
+                  label=""
+                  value={startTime}
+                  onChangeTime={setStartTime}
+                  outlineColor={Colors.border}
+                  activeOutlineColor={Colors.primary}
+                  style={styles.input}
+                />
+                {errors.startTime && <HelperText type="error">{errors.startTime}</HelperText>}
+              </View>
+              <View style={styles.timeSep}>
+                <Text style={styles.timeSepText}>–</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>End Time</Text>
+                <TimePickerInput
+                  label=""
+                  value={endTime}
+                  onChangeTime={setEndTime}
+                  outlineColor={Colors.border}
+                  activeOutlineColor={Colors.primary}
+                  style={styles.input}
+                />
+                {errors.endTime && <HelperText type="error">{errors.endTime}</HelperText>}
+              </View>
+            </View>
+          </FormSection>
+
+          {/* ── Planned Classes ── */}
+          <FormSection icon="chart-bar" title="Planned Classes / Month" required>
+            <TextInput
+              mode="outlined"
+              placeholder="e.g. 12"
+              value={plannedClasses}
+              onChangeText={setPlannedClasses}
+              keyboardType="numeric"
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
               style={styles.input}
+              outlineStyle={styles.inputOutline}
             />
-            {errors.endTime && <HelperText type="error">{errors.endTime}</HelperText>}
-          </View>
-        </View>
+            {errors.plannedClasses && <HelperText type="error">{errors.plannedClasses}</HelperText>}
+          </FormSection>
 
-        <Divider style={styles.divider} />
+          {/* ── Student Info ── */}
+          <FormSection icon="account-outline" title="Student Info" subtitle="Optional — can also invite later">
+            <TextInput
+              mode="outlined"
+              label="Student Name"
+              value={studentName}
+              onChangeText={setStudentName}
+              outlineColor={Colors.border}
+              activeOutlineColor={Colors.primary}
+              style={styles.input}
+              outlineStyle={styles.inputOutline}
+            />
+            <TextInput
+              mode="outlined"
+              label="Student Email"
+              value={studentEmail}
+              onChangeText={setStudentEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              outlineColor={Colors.border}
+              activeOutlineColor={Colors.primary}
+              style={styles.input}
+              outlineStyle={styles.inputOutline}
+            />
+            <TextInput
+              mode="outlined"
+              label="Monthly Fee (৳)"
+              value={salary}
+              onChangeText={setSalary}
+              keyboardType="numeric"
+              outlineColor={Colors.border}
+              activeOutlineColor={Colors.primary}
+              style={styles.input}
+              outlineStyle={styles.inputOutline}
+            />
+          </FormSection>
 
-        {/* Planned classes */}
-        <Text variant="labelLarge" style={styles.sectionLabel}>Planned Classes / Month *</Text>
-        <TextInput
-          mode="outlined"
-          label="e.g. 12"
-          value={plannedClasses}
-          onChangeText={setPlannedClasses}
-          keyboardType="numeric"
-          outlineColor={Colors.border}
-          activeOutlineColor={Colors.primary}
-          style={styles.input}
-        />
-        {errors.plannedClasses && <HelperText type="error">{errors.plannedClasses}</HelperText>}
+          {errors.submit && <HelperText type="error" style={{ textAlign: 'center' }}>{errors.submit}</HelperText>}
 
-        <Divider style={styles.divider} />
+          <Button
+            mode="contained"
+            onPress={handleSubmit}
+            style={styles.submitBtn}
+            contentStyle={styles.submitBtnContent}
+            labelStyle={styles.submitBtnLabel}
+            buttonColor={Colors.primary}
+            loading={isSubmitting}
+            disabled={isSubmitting}
+            icon="check"
+          >
+            {isSubmitting ? 'Creating…' : 'Create Tuition'}
+          </Button>
 
-        {/* Student info (optional) */}
-        <Text variant="labelLarge" style={styles.sectionLabel}>Student Info (optional)</Text>
-        <TextInput
-          mode="outlined"
-          label="Student Name"
-          value={studentName}
-          onChangeText={setStudentName}
-          outlineColor={Colors.border}
-          activeOutlineColor={Colors.primary}
-          style={styles.input}
-        />
-        <TextInput
-          mode="outlined"
-          label="Student Email"
-          value={studentEmail}
-          onChangeText={setStudentEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          outlineColor={Colors.border}
-          activeOutlineColor={Colors.primary}
-          style={styles.input}
-        />
-        <TextInput
-          mode="outlined"
-          label="Monthly Salary (৳)"
-          value={salary}
-          onChangeText={setSalary}
-          keyboardType="numeric"
-          outlineColor={Colors.border}
-          activeOutlineColor={Colors.primary}
-          style={styles.input}
-        />
-
-        {errors.submit && <HelperText type="error">{errors.submit}</HelperText>}
-
-        <Button
-          mode="contained"
-          onPress={handleSubmit}
-          style={styles.submitBtn}
-          contentStyle={{ paddingVertical: Spacing.xs }}
-          buttonColor={Colors.primary}
-          loading={isSubmitting}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? 'Creating Tuition...' : 'Create Tuition'}
-        </Button>
-      </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
+function FormSection({
+  icon, title, subtitle, required, error, children
+}: {
+  icon: string; title: string; subtitle?: string; required?: boolean; error?: string; children: React.ReactNode;
+}) {
+  return (
+    <View style={sectionStyles.wrapper}>
+      <View style={sectionStyles.header}>
+        <View style={sectionStyles.iconBox}>
+          <MaterialCommunityIcons name={icon as any} size={18} color={Colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={sectionStyles.title}>
+            {title}{required && <Text style={sectionStyles.required}> *</Text>}
+          </Text>
+          {subtitle && <Text style={sectionStyles.subtitle}>{subtitle}</Text>}
+        </View>
+      </View>
+      <View style={sectionStyles.body}>{children}</View>
+    </View>
+  );
+}
+
+const sectionStyles = StyleSheet.create({
+  wrapper: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surfaceVariant,
+  },
+  iconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textPrimary,
+  },
+  required: { color: Colors.error },
+  subtitle: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.regular,
+    color: Colors.textTertiary,
+    marginTop: 1,
+  },
+  body: {
+    padding: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
+});
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  keyboardView: { flex: 1 },
+  container: { flex: 1, backgroundColor: Colors.backgroundDeep },
   appbar: { backgroundColor: Colors.backgroundDeep },
   appbarTitle: {
-    color: Colors.textOnPrimary,
+    color: Colors.textPrimary,
     fontSize: FontSize.lg,
     fontFamily: FontFamily.semibold,
   },
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  sectionLabel: {
-    color: Colors.textPrimary,
-    fontFamily: FontFamily.semibold,
-    marginBottom: Spacing.sm,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
+  input: { backgroundColor: Colors.surface, marginBottom: Spacing.xs },
+  inputOutline: { borderRadius: BorderRadius.md },
+  inputLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.medium,
+    color: Colors.textSecondary,
     marginBottom: Spacing.xs,
   },
-  chip: {
-    backgroundColor: Colors.surfaceVariant,
-    borderRadius: BorderRadius.full,
+  daysRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
   },
-  chipSelected: { backgroundColor: Colors.primary },
-  chipText: { fontSize: FontSize.xs, color: Colors.textSecondary, fontFamily: FontFamily.regular },
-  chipTextSelected: { fontSize: FontSize.xs, color: Colors.white, fontFamily: FontFamily.medium },
-  input: { backgroundColor: Colors.surface, marginBottom: Spacing.xs },
-  timeRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  divider: { marginVertical: Spacing.lg, backgroundColor: Colors.border },
+  dayChip: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayChipSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  dayChipText: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textSecondary,
+  },
+  dayChipTextSelected: {
+    color: Colors.white,
+  },
+  timeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  timeSep: { paddingTop: 18, paddingHorizontal: 4 },
+  timeSepText: { fontSize: FontSize.lg, color: Colors.textTertiary, fontFamily: FontFamily.regular },
   submitBtn: {
     marginTop: Spacing.xl,
     borderRadius: BorderRadius.lg,
+  },
+  submitBtnContent: { paddingVertical: Spacing.sm },
+  submitBtnLabel: {
+    fontSize: FontSize.base,
+    fontFamily: FontFamily.semibold,
+    letterSpacing: 0.5,
   },
 });

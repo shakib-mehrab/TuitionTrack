@@ -208,7 +208,7 @@ export default function StudentHomeworkScreen() {
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => router.back()} color={Colors.textOnPrimary} />
+        <Appbar.BackAction onPress={() => router.back()} color={Colors.textPrimary} />
         <Appbar.Content
           title="Homework"
           subtitle={`${pendingCount} pending`}
@@ -263,11 +263,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   appbar: { backgroundColor: Colors.backgroundDeep },
   appbarTitle: {
-    color: Colors.textOnPrimary,
+    color: Colors.textPrimary,
     fontSize: FontSize.lg,
     fontFamily: FontFamily.semibold,
   },
-  appbarSubtitle: { color: Colors.textOnPrimary + 'CC', fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  appbarSubtitle: { color: Colors.textPrimary + 'CC', fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   filterRow: {
     flexDirection: 'row',
     padding: Spacing.md,

@@ -3,20 +3,21 @@ import { useAuthStore } from '@/store/authStore';
 import { useTeacherStore } from '@/store/teacherStore';
 import type { Tuition } from '@/types';
 import { generateTuitionPDF } from '@/utils/pdf';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
-    Appbar,
-    Button,
-    Card,
-    Dialog,
-    FAB,
-    Portal,
-    ProgressBar,
-    Snackbar,
-    Surface,
-    Text,
+  Appbar,
+  Button,
+  Card,
+  Dialog,
+  Divider,
+  FAB,
+  Portal,
+  ProgressBar,
+  Snackbar,
+  Text
 } from 'react-native-paper';
 
 type DialogType = 'reset' | 'delete' | null;
@@ -34,6 +35,55 @@ function paymentLabel(status: string) {
   if (status === 'partial') return 'Partial';
   return 'Unpaid';
 }
+
+function StatTile({
+  icon, iconBg, iconColor, value, label, borderColor,
+}: {
+  icon: string; iconBg: string; iconColor: string; value: string; label: string; borderColor: string;
+}) {
+  return (
+    <View style={[tileStyles.tile, { borderColor }]}>
+      <View style={[tileStyles.iconBox, { backgroundColor: iconBg }]}>
+        <MaterialCommunityIcons name={icon as any} size={20} color={iconColor} />
+      </View>
+      <Text style={[tileStyles.value, { color: iconColor }]}>{value}</Text>
+      <Text style={tileStyles.label}>{label}</Text>
+    </View>
+  );
+}
+
+const tileStyles = StyleSheet.create({
+  tile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    backgroundColor: Colors.surface,
+    gap: Spacing.xs,
+  },
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  value: {
+    fontSize: FontSize.lg,
+    fontFamily: FontFamily.bold,
+    lineHeight: 22,
+  },
+  label: {
+    fontSize: 10,
+    fontFamily: FontFamily.medium,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+});
 
 export default function TeacherDashboard() {
   const router = useRouter();
@@ -66,7 +116,7 @@ export default function TeacherDashboard() {
     if (user?.id) {
       initialize(user.id);
     }
-    
+
     return () => {
       cleanup();
     };
@@ -159,20 +209,17 @@ export default function TeacherDashboard() {
     const progress = Math.min(totalClasses / planned, 1);
 
     return (
-      <Card style={styles.card} mode="elevated">
+      <Card style={styles.card} mode="elevated" onPress={() => router.push(`/(teacher)/tuition/${item.id}` as any)}>
         <Card.Content>
           <View style={styles.cardHeader}>
             <View style={{ flex: 1 }}>
               <Text variant="titleMedium" style={styles.subject}>
-                {item.enrolledStudents && item.enrolledStudents.length > 0 
+                {item.enrolledStudents && item.enrolledStudents.length > 0
                   ? item.enrolledStudents.map(s => s.name).join(', ')
                   : item.studentName ?? 'No students assigned'}
               </Text>
-              <Text variant="bodySmall" style={styles.studentName}>
-                {item.subject}
-              </Text>
               <Text variant="bodySmall" style={styles.timeText}>
-                {item.startTime} – {item.endTime} · {item.schedule}
+                {item.subject} · {item.startTime} – {item.endTime}
               </Text>
             </View>
             <View
@@ -194,7 +241,7 @@ export default function TeacherDashboard() {
 
           <View style={styles.progressRow}>
             <Text variant="bodySmall" style={styles.progressLabel}>
-              {totalClasses} / {planned} classes ({classCount} this month)
+              {totalClasses} / {planned} classes (Last: {getLogsForTuition(item.id)[0] ? new Date(getLogsForTuition(item.id)[0].date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'None'})
             </Text>
             <Text variant="bodySmall" style={styles.progressPct}>
               {Math.round(progress * 100)}%
@@ -205,77 +252,78 @@ export default function TeacherDashboard() {
             color={Colors.primary}
             style={styles.progressBar}
           />
-        </Card.Content>
 
-        <Card.Actions style={styles.cardActions}>
-          <Button
-            compact
-            mode="text"
-            onPress={() => router.push(`/(teacher)/tuition/${item.id}` as any)}
-          >
-            View
-          </Button>
-          <Button
-            compact
-            mode="text"
-            textColor={Colors.success}
-            onPress={() => handleAddClass(item)}
-          >
-            + Class
-          </Button>
-          <Button
-            compact
-            mode="text"
-            textColor={Colors.warning}
-            onPress={() => handleDeleteLastClass(item)}
-          >
-            – Class
-          </Button>
-          <Button
-            compact
-            mode="text"
-            textColor={Colors.info}
-            onPress={() => openDialog('reset', item)}
-          >
-            Reset
-          </Button>
-          <Button
-            compact
-            mode="text"
-            textColor={Colors.error}
-            onPress={() => openDialog('delete', item)}
-          >
-            Delete
-          </Button>
-        </Card.Actions>
+          <Divider style={{ marginTop: Spacing.md, marginBottom: Spacing.sm, marginHorizontal: -Spacing.md }} />
+          <View style={styles.cardActionsRow}>
+            <Button
+              compact
+              mode="text"
+              textColor={Colors.primary}
+              style={{ paddingHorizontal: 0, minWidth: 0, alignSelf: 'center' }}
+              onPress={() => router.push(`/(teacher)/tuition/${item.id}` as any)}
+            >
+              View
+            </Button>
+            <View style={styles.iconActionGroup}>
+              <View style={styles.actionBtnWrapper}>
+                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.success }]} onPress={() => handleAddClass(item)}>
+                  <MaterialCommunityIcons name="plus" size={18} color={Colors.white} />
+                </TouchableOpacity>
+                <Text style={styles.actionBtnCaption}>Add</Text>
+              </View>
+              <View style={styles.actionBtnWrapper}>
+                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.warning }]} onPress={() => handleDeleteLastClass(item)}>
+                  <MaterialCommunityIcons name="minus" size={18} color={Colors.white} />
+                </TouchableOpacity>
+                <Text style={styles.actionBtnCaption}>Remove</Text>
+              </View>
+              <View style={styles.actionBtnWrapper}>
+                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.info }]} onPress={() => openDialog('reset', item)}>
+                  <MaterialCommunityIcons name="refresh" size={16} color={Colors.white} />
+                </TouchableOpacity>
+                <Text style={styles.actionBtnCaption}>Reset</Text>
+              </View>
+              <View style={styles.actionBtnWrapper}>
+                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.error }]} onPress={() => openDialog('delete', item)}>
+                  <MaterialCommunityIcons name="delete-outline" size={16} color={Colors.white} />
+                </TouchableOpacity>
+                <Text style={styles.actionBtnCaption}>Delete</Text>
+              </View>
+            </View>
+          </View>
+        </Card.Content>
       </Card>
     );
   };
 
   const ListHeader = () => (
     <>
+      {/* ── Stat Tiles ── */}
       <View style={styles.statsRow}>
-        <Surface
-          style={[styles.statCard, { backgroundColor: Colors.primaryMuted }]}
-          elevation={0}
-        >
-          <Text style={styles.statValue}>{activeTuitions.length}</Text>
-          <Text style={styles.statLabel}>{'Active\nTuitions'}</Text>
-        </Surface>
-        <Surface
-          style={[styles.statCard, { backgroundColor: Colors.successLight }]}
-          elevation={0}
-        >
-          <Text style={styles.statValue}>{uniqueStudentIds.size}</Text>
-          <Text style={styles.statLabel}>Students</Text>
-        </Surface>
-        <Surface
-          style={[styles.statCard, { backgroundColor: Colors.warningLight }]}
-          elevation={0}
-        >
-          <Text style={styles.statValue}>৳{totalSalary.toLocaleString()}</Text>
-          <Text style={styles.statLabel}>{'Monthly\nSalary'}</Text>
-        </Surface>
+        <StatTile
+          icon="book-education-outline"
+          iconBg={Colors.primary + '18'}
+          iconColor={Colors.primary}
+          value={String(activeTuitions.length)}
+          label="Active Tuitions"
+          borderColor={Colors.primary + '40'}
+        />
+        <StatTile
+          icon="account-group-outline"
+          iconBg={Colors.success + '18'}
+          iconColor={Colors.success}
+          value={String(uniqueStudentIds.size)}
+          label="Students"
+          borderColor={Colors.success + '40'}
+        />
+        <StatTile
+          icon="cash-multiple"
+          iconBg={Colors.warning + '18'}
+          iconColor={Colors.warning}
+          value={`৳${totalSalary >= 1000 ? (totalSalary / 1000).toFixed(1) + 'k' : totalSalary}`}
+          label="Monthly"
+          borderColor={Colors.warning + '40'}
+        />
       </View>
       <Text variant="titleMedium" style={styles.sectionTitle}>
         My Tuitions
@@ -287,13 +335,13 @@ export default function TeacherDashboard() {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.Content
-          title={`Hello, ${user?.name ?? 'Teacher'}`}
+          title={user?.name ? user.name.trim().split(' ').slice(-1)[0] : 'Teacher'}
           titleStyle={styles.appbarTitle}
         />
         <Appbar.Action
           icon="logout"
           onPress={logout}
-          color={Colors.textOnPrimary}
+          color={Colors.textPrimary}
         />
       </Appbar.Header>
 
@@ -401,7 +449,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   appbar: { backgroundColor: Colors.backgroundDeep },
   appbarTitle: {
-    color: Colors.textOnPrimary,
+    color: Colors.textPrimary,
     fontSize: FontSize.lg,
     fontFamily: FontFamily.semibold,
   },
@@ -478,7 +526,37 @@ const styles = StyleSheet.create({
   progressLabel: { color: Colors.textSecondary, fontFamily: FontFamily.regular },
   progressPct: { color: Colors.textSecondary, fontFamily: FontFamily.medium },
   progressBar: { height: 6, borderRadius: 3, backgroundColor: Colors.border },
-  cardActions: { paddingHorizontal: Spacing.xs, flexWrap: 'wrap' },
+  cardActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  iconActionGroup: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  actionBtnWrapper: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+  },
+  actionBtnCaption: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.medium,
+  },
   fab: {
     position: 'absolute',
     right: Spacing.lg,

@@ -8,6 +8,9 @@
     "scheme": "tuitiontrack",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "androidNavigationBar": {
+      "visible": "sticky-immersive"
+    },
     "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/ed8f80f7-c24c-4925-8c61-94301399eea7"

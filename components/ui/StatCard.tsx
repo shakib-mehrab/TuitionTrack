@@ -13,7 +13,7 @@ interface StatCardProps {
 
 export default function StatCard({ icon, label, value, color, bgColor, trend }: StatCardProps) {
   return (
-    <View style={[styles.card, Shadow.sm]}>
+    <View style={styles.card}>
       <View style={[styles.iconBox, { backgroundColor: bgColor }]}>
         <Text style={styles.icon}>{icon}</Text>
       </View>
@@ -31,6 +31,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     minWidth: 100,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   iconBox: {
     width: 40,

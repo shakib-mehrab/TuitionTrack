@@ -9,70 +9,126 @@ const p = {
   navy400: "#2E2E60",
   navy300: "#3D3D78",
 
-  // Yellow  (primary)
-  yellow300: "#FDE047",
-  yellow400: "#FACC15",
-  yellow500: "#EAB308",
-  yellow600: "#CA8A04",
-  yellow700: "#A16207",
-  yellowMuted: "#EAB30826", // 15 % alpha
+  // Indigo (Primary)
+  indigo300: "#818CF8",
+  indigo400: "#6366F1",
+  indigo500: "#4F46E5",
+  indigo600: "#4338CA",
+  indigo700: "#3730A3",
+  indigoMuted: "#4F46E526", // 15% alpha
 
-  // Cyan  (accent)
+  // Cyan (accent)
   cyan400: "#67E8F9",
   cyan500: "#22D3EE",
 
-  // Green  (success)
+  // Green (success)
   green400: "#34D399",
   green500: "#10B981",
   green900: "#064E3B",
 
-  // Amber  (warning)
+  // Amber (warning)
   amber400: "#FBBF24",
   amber500: "#F59E0B",
   amber900: "#78350F",
 
-  // Red  (error)
+  // Red (error)
   red400: "#F87171",
   red500: "#EF4444",
   red900: "#7F1D1D",
 
-  // Slate  (text)
+  // Slate (text & light surfaces)
   slate50: "#F8FAFC",
   slate100: "#F1F5F9",
+  slate200: "#E2E8F0",
   slate300: "#CBD5E1",
   slate400: "#94A3B8",
   slate500: "#64748B",
   slate600: "#475569",
+  slate700: "#334155",
+  slate800: "#1E293B",
+  slate900: "#0F172A",
 
   white: "#FFFFFF",
   black: "#000000",
 };
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
-export const Colors = {
-  // Brand
-  primary: p.yellow500,
-  primaryLight: p.yellow400,
-  primaryDark: p.yellow600,
-  primaryMuted: p.yellowMuted,
+// ─── Design Tokens (Light Theme) ──────────────────────────────────────────────
+export const lightColors = {
+  primary: p.indigo500,
+  primaryLight: p.indigo400,
+  primaryDark: p.indigo600,
+  primaryMuted: p.indigoMuted,
 
   accent: p.cyan500,
   accentLight: p.cyan400,
 
-  // Semantic
   success: p.green500,
-  successLight: p.green900,
-
-  warning: p.amber400,
-  warningLight: p.amber900,
-
-  error: p.red400,
-  errorLight: p.red900,
-
+  successLight: "#10B98122",
+  warning: p.amber500,
+  warningLight: "#F59E0B22",
+  error: p.red500,
+  errorLight: "#EF444422",
   info: p.cyan500,
   infoLight: "#22D3EE22",
 
-  // Surfaces
+  background: p.white,
+  backgroundDeep: p.slate50,
+  surface: p.white,
+  surfaceVariant: p.slate50,
+  surfaceRaised: p.white,
+
+  border: p.slate200,
+  borderDark: p.slate300,
+
+  textPrimary: p.slate900,
+  textSecondary: p.slate600,
+  textTertiary: p.slate400,
+  textOnPrimary: p.white,
+  textDisabled: p.slate300,
+
+  tabBar: p.white,
+  tabBarActive: p.indigo500,
+  tabBarInactive: p.slate400,
+
+  cardShadow: "rgba(0,0,0,0.05)",
+
+  statusPaid: p.green500,
+  statusUnpaid: p.red500,
+  statusPending: p.amber500,
+  statusCompleted: p.green500,
+  statusMissed: p.red500,
+  statusScheduled: p.cyan500,
+  statusCancelled: p.amber500,
+
+  white: p.white,
+  black: p.black,
+
+  // Theme support for Expo Router/Nativewind
+  tint: p.indigo500,
+  icon: p.slate500,
+  tabIconDefault: p.slate400,
+  tabIconSelected: p.indigo500,
+};
+
+// ─── Design Tokens (Dark Theme) ───────────────────────────────────────────────
+export const darkColors = {
+  primary: p.indigo500,
+  primaryLight: p.indigo400,
+  primaryDark: p.indigo600,
+  primaryMuted: p.indigoMuted,
+
+  accent: p.cyan500,
+  accentLight: p.cyan400,
+
+  success: p.green400,
+  successLight: p.green900,
+  warning: p.amber400,
+  warningLight: p.amber900,
+  error: p.red400,
+  errorLight: p.red900,
+  info: p.cyan500,
+  infoLight: "#22D3EE22",
+
   background: p.navy800,
   backgroundDeep: p.navy900,
   surface: p.navy700,
@@ -82,21 +138,18 @@ export const Colors = {
   border: p.navy400,
   borderDark: p.navy300,
 
-  // Text
   textPrimary: p.slate50,
   textSecondary: p.slate300,
   textTertiary: p.slate500,
   textOnPrimary: p.white,
   textDisabled: p.slate600,
 
-  // Tab bar
   tabBar: p.navy900,
-  tabBarActive: p.yellow400,
+  tabBarActive: p.indigo400,
   tabBarInactive: p.slate500,
 
   cardShadow: "rgba(0,0,0,0.50)",
 
-  // Status badges
   statusPaid: p.green400,
   statusUnpaid: p.red400,
   statusPending: p.amber400,
@@ -107,6 +160,20 @@ export const Colors = {
 
   white: p.white,
   black: p.black,
+
+  // Theme support for Expo Router/Nativewind
+  tint: p.white,
+  icon: p.slate400,
+  tabIconDefault: p.slate400,
+  tabIconSelected: p.white,
+};
+
+// ─── Unified Colors Export ────────────────────────────────────────────────────
+// Defaults to light theme for static legacy imports, but exports .light and .dark for hooks
+export const Colors = {
+  ...lightColors,
+  light: lightColors,
+  dark: darkColors,
 };
 
 // ─── Typography ───────────────────────────────────────────────────────────────
@@ -161,43 +228,38 @@ export const BorderRadius = {
 
 // ─── Glassmorphism – shared dialog / modal style ──────────────────────────────
 export const GlassDialog = {
-  backgroundColor: "rgba(13, 13, 30, 0.97)",
+  backgroundColor: "#FFFFFF",
   borderWidth: 1,
-  borderColor: "rgba(34, 211, 238, 0.18)", // cyan glow edge
+  borderColor: "#E2E8F0",
   borderRadius: 20,
-  shadowColor: "#22D3EE",
-  shadowOffset: { width: 0, height: 0 },
-  shadowOpacity: 0.1,
+  shadowColor: "#4F46E5",
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.12,
   shadowRadius: 24,
-  elevation: 24,
+  elevation: 16,
 };
 
-// Dialog title & primary action colours (contrasting cyan instead of purple)
-export const GlassDialogTitle = { color: "#22D3EE" }; // accent cyan
-export const GlassDialogPrimary = "#22D3EE"; // button textColor / buttonColor
-export const GlassDialogScrim = "rgba(0, 0, 10, 0.75)"; // dark overlay
+// Dialog title & primary action colours
+export const GlassDialogTitle = {
+  color: "#0F172A",
+  fontFamily: "Poppins_600SemiBold",
+  fontSize: 17,
+};
+export const GlassDialogPrimary = "#4F46E5"; // button textColor / buttonColor
+export const GlassDialogScrim = "rgba(0, 0, 10, 0.4)"; // overlay
 
-// ─── Elevation shadows (higher opacity for dark bg) ──────────────────────────
+// ─── Elevation shadows ───────────────────────────────────────────────────────
 export const Shadow = {
   sm: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: "transparent",
+    elevation: 0,
   },
   md: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowColor: "transparent",
+    elevation: 0,
   },
   lg: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.55,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowColor: "transparent",
+    elevation: 0,
   },
 };

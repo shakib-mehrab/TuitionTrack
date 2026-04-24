@@ -31,20 +31,20 @@ const variantStyles: Record<Variant, { container: ViewStyle; text: TextStyle }> 
     text: { color: Colors.white },
   },
   secondary: {
-    container: { backgroundColor: Colors.success },
-    text: { color: Colors.white },
+    container: { backgroundColor: Colors.surfaceVariant, borderWidth: 1, borderColor: Colors.border },
+    text: { color: Colors.textPrimary },
   },
   outline: {
     container: {
-      backgroundColor: 'transparent',
-      borderWidth: 1.5,
-      borderColor: Colors.primary,
+      backgroundColor: Colors.surface,
+      borderWidth: 1,
+      borderColor: Colors.borderDark,
     },
-    text: { color: Colors.primary },
+    text: { color: Colors.textPrimary },
   },
   ghost: {
-    container: { backgroundColor: Colors.primaryLight },
-    text: { color: Colors.primary },
+    container: { backgroundColor: Colors.primaryMuted },
+    text: { color: Colors.primaryDark },
   },
   danger: {
     container: { backgroundColor: Colors.error },
@@ -54,15 +54,15 @@ const variantStyles: Record<Variant, { container: ViewStyle; text: TextStyle }> 
 
 const sizeStyles: Record<Size, { container: ViewStyle; text: TextStyle }> = {
   sm: {
-    container: { height: 36, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.sm },
+    container: { height: 40, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.md },
     text: { fontSize: FontSize.sm },
   },
   md: {
-    container: { height: 46, paddingHorizontal: Spacing.xl, borderRadius: BorderRadius.md },
+    container: { height: 50, paddingHorizontal: Spacing.xl, borderRadius: BorderRadius.md },
     text: { fontSize: FontSize.base },
   },
   lg: {
-    container: { height: 54, paddingHorizontal: Spacing['2xl'], borderRadius: BorderRadius.md },
+    container: { height: 56, paddingHorizontal: Spacing['2xl'], borderRadius: BorderRadius.md },
     text: { fontSize: FontSize.md },
   },
 };
@@ -119,5 +119,5 @@ const styles = StyleSheet.create({
   fullWidth: { width: '100%' },
   disabled: { opacity: 0.5 },
   text: { fontWeight: FontWeight.semibold },
-  icon: { fontSize: 16 },
+  icon: { fontSize: 18 },
 });

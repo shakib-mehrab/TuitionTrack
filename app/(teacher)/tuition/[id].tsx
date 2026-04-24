@@ -98,6 +98,8 @@ export default function TuitionDetailScreen() {
 
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [snackMsg, setSnackMsg] = useState('');
+  const [showAllActivity, setShowAllActivity] = useState(false);
+  const [showFinishedHw, setShowFinishedHw] = useState(false);
 
   // Add class log state
   const [classDate, setClassDate] = useState(new Date().toISOString().slice(0, 10));
@@ -345,25 +347,29 @@ export default function TuitionDetailScreen() {
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => router.back()} color={Colors.textOnPrimary} />
+        <Appbar.BackAction onPress={() => router.back()} color={Colors.textPrimary} />
         <Appbar.Content
-          title={tuition.subject}
-          subtitle={
-            tuition.enrolledStudents && tuition.enrolledStudents.length > 0
-              ? tuition.enrolledStudents.map((s) => s.name).join(', ')
-              : tuition.studentName ?? 'No student'
-          }
+          title={(() => {
+            const fullName =
+              tuition.enrolledStudents && tuition.enrolledStudents.length > 0
+                ? tuition.enrolledStudents[0].name
+                : tuition.studentName ?? '';
+            return fullName.trim().split(' ').slice(-1)[0] || tuition.subject;
+          })()}
+          subtitle={tuition.subject}
           titleStyle={styles.appbarTitle}
           subtitleStyle={styles.appbarSubtitle}
         />
         <Appbar.Action
           icon="file-pdf-box"
-          color={Colors.accent}
+          color={Colors.primary}
+          size={22}
           onPress={handleDownloadPDF}
         />
         <Appbar.Action
           icon="account-plus-outline"
-          color={Colors.success}
+          color={Colors.primary}
+          size={22}
           onPress={handleGenerateInviteCode}
           disabled={isGeneratingCode}
         />
@@ -422,10 +428,12 @@ export default function TuitionDetailScreen() {
             <View style={styles.sectionHeader}>
               <Text variant="titleSmall" style={styles.cardTitle}>Class Logs</Text>
               <Button
-                compact
-                mode="contained-tonal"
+                mode="contained"
+                buttonColor={Colors.primary}
                 onPress={() => setDialogMode('addClass')}
                 icon="plus"
+                compact
+                labelStyle={{ fontSize: 12 }}
               >
                 Add
               </Button>
@@ -475,55 +483,54 @@ export default function TuitionDetailScreen() {
           <Card.Content>
             <View style={styles.sectionHeader}>
               <Text variant="titleSmall" style={styles.cardTitle}>Homework</Text>
-              <Button
-                compact
-                mode="contained-tonal"
-                onPress={openAddHomework}
-                icon="plus"
-              >
-                Assign
-              </Button>
+              <View style={{ flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' }}>
+                <Button
+                  mode="text"
+                  compact
+                  textColor={showFinishedHw ? Colors.textSecondary : Colors.primary}
+                  onPress={() => setShowFinishedHw(!showFinishedHw)}
+                  labelStyle={{ fontSize: 11 }}
+                >
+                  {showFinishedHw ? 'Pending' : `Done (${homeworkList.filter(h => h.completed).length})`}
+                </Button>
+                <Button
+                  mode="contained"
+                  buttonColor={Colors.primary}
+                  onPress={openAddHomework}
+                  icon="plus"
+                  compact
+                  labelStyle={{ fontSize: 12 }}
+                >
+                  Assign
+                </Button>
+              </View>
             </View>
 
-            {homeworkList.length === 0 ? (
-              <Text style={styles.emptyText}>No homework assigned yet.</Text>
-            ) : (
-              homeworkList.map((hw, idx) => (
+            {(() => {
+              const filtered = homeworkList.filter(h => showFinishedHw ? h.completed : !h.completed);
+              if (homeworkList.length === 0) {
+                return <Text style={styles.emptyText}>No homework assigned yet.</Text>;
+              }
+              if (filtered.length === 0) {
+                return <Text style={styles.emptyText}>{showFinishedHw ? 'No completed homework.' : 'All homework completed! 🎉'}</Text>;
+              }
+              return filtered.map((hw, idx) => (
                 <View key={hw.id}>
                   {idx > 0 && <Divider style={{ marginVertical: Spacing.xs }} />}
-                  <TouchableOpacity 
-                    activeOpacity={0.7} 
+                  <TouchableOpacity
+                    activeOpacity={0.7}
                     onPress={() => { setViewingHwId(hw.id); setDialogMode('viewHomework'); }}
                     style={styles.hwItem}
                   >
-                    <View style={styles.hwRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text variant="bodyMedium" style={[styles.hwChapter, hw.completed && styles.strikethrough]}>
-                          {hw.subject}
-                        </Text>
-                        <Text variant="bodySmall" style={styles.hwTask}>Chapter: {hw.chapter}</Text>
-                        <Text variant="bodySmall" style={styles.hwTask}>Task: {hw.task}</Text>
-                        <View style={styles.hwMetaRow}>
-                          <View style={styles.hwMetaItem}>
-                            <MaterialCommunityIcons name="calendar-clock" size={14} color={Colors.warning} />
-                            <Text variant="bodySmall" style={styles.hwDue}>
-                              {formatDate(hw.dueDate)}
-                            </Text>
-                          </View>
-                          {hw.comments.length > 0 && (
-                            <View style={styles.hwMetaItem}>
-                              <MaterialCommunityIcons name="comment-multiple" size={14} color={Colors.info} />
-                              <Text variant="bodySmall" style={styles.hwComments}>
-                                {hw.comments.length}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
+                    {/* Subject row with action icons */}
+                    <View style={styles.hwHeaderRow}>
+                      <Text variant="titleSmall" style={[styles.hwSubjectTitle, hw.completed && styles.strikethrough]}>
+                        {hw.subject}
+                      </Text>
                       <View style={styles.hwActions}>
                         <IconButton
                           icon={hw.completed ? 'check-circle' : 'check-circle-outline'}
-                          size={20}
+                          size={18}
                           iconColor={hw.completed ? Colors.success : Colors.textTertiary}
                           onPress={async (e) => {
                             e.stopPropagation();
@@ -537,7 +544,7 @@ export default function TuitionDetailScreen() {
                         />
                         <IconButton
                           icon="pencil-outline"
-                          size={18}
+                          size={16}
                           iconColor={Colors.primary}
                           onPress={(e) => {
                             e.stopPropagation();
@@ -547,21 +554,42 @@ export default function TuitionDetailScreen() {
                         />
                         <IconButton
                           icon="delete-outline"
-                          size={18}
+                          size={16}
                           iconColor={Colors.error}
-                          onPress={(e) => { 
+                          onPress={(e) => {
                             e.stopPropagation();
-                            setDeletingHw(hw); 
-                            setDialogMode('deleteHomework'); 
+                            setDeletingHw(hw);
+                            setDialogMode('deleteHomework');
                           }}
                           style={{ margin: 0 }}
                         />
                       </View>
                     </View>
+                    {/* Task */}
+                    <Text variant="bodySmall" style={styles.hwTaskHighlight}>
+                      {hw.task}
+                    </Text>
+                    {/* Meta row: Chapter · Date · Comments */}
+                    <View style={styles.hwMetaRow}>
+                      <View style={styles.hwMetaItem}>
+                        <MaterialCommunityIcons name="book-open-outline" size={13} color={Colors.textTertiary} />
+                        <Text style={styles.hwMetaText}>Ch: {hw.chapter}</Text>
+                      </View>
+                      <Text style={styles.hwMetaDot}>·</Text>
+                      <View style={styles.hwMetaItem}>
+                        <MaterialCommunityIcons name="calendar-clock" size={13} color={Colors.warning} />
+                        <Text style={styles.hwDue}>{formatDate(hw.dueDate)}</Text>
+                      </View>
+                      <Text style={styles.hwMetaDot}>·</Text>
+                      <View style={styles.hwMetaItem}>
+                        <MaterialCommunityIcons name="comment-outline" size={13} color={Colors.primary} />
+                        <Text style={styles.hwCommentsBlue}>{hw.comments.length}</Text>
+                      </View>
+                    </View>
                   </TouchableOpacity>
                 </View>
-              ))
-            )}
+              ));
+            })()}
           </Card.Content>
         </Card>
 
@@ -572,23 +600,36 @@ export default function TuitionDetailScreen() {
             {activityList.length === 0 ? (
               <Text style={styles.emptyText}>No activity yet.</Text>
             ) : (
-              activityList.slice(0, 20).map((a) => (
-                <List.Item
-                  key={a.id}
-                  title={a.description}
-                  description={formatTime(a.timestamp)}
-                  left={(props) => (
-                    <List.Icon
-                      {...props}
-                      icon={activityIcon(a.type)}
-                      color={activityColor(a.type)}
-                    />
-                  )}
-                  titleStyle={styles.activityTitle}
-                  descriptionStyle={styles.activityTime}
-                  style={styles.activityItem}
-                />
-              ))
+              <>
+                {(showAllActivity ? activityList : activityList.slice(0, 3)).map((a) => (
+                  <List.Item
+                    key={a.id}
+                    title={a.description}
+                    description={formatTime(a.timestamp)}
+                    left={(props) => (
+                      <List.Icon
+                        {...props}
+                        icon={activityIcon(a.type)}
+                        color={activityColor(a.type)}
+                      />
+                    )}
+                    titleStyle={styles.activityTitle}
+                    descriptionStyle={styles.activityTime}
+                    style={styles.activityItem}
+                  />
+                ))}
+                {activityList.length > 3 && (
+                  <Button
+                    mode="text"
+                    compact
+                    onPress={() => setShowAllActivity(!showAllActivity)}
+                    style={{ marginTop: Spacing.sm }}
+                    textColor={Colors.primary}
+                  >
+                    {showAllActivity ? 'Show Less' : `View ${activityList.length - 3} More Activities`}
+                  </Button>
+                )}
+              </>
             )}
           </Card.Content>
         </Card>
@@ -596,189 +637,170 @@ export default function TuitionDetailScreen() {
 
       {/* ── Dialogs ── */}
       <Portal>
-        {/* Add Class Log Dialog */}
+        {/* ── Add Class Log Dialog ── */}
         <Dialog visible={dialogMode === 'addClass'} onDismiss={closeDialog} style={GlassDialog}>
-          <Dialog.Title style={GlassDialogTitle}>Add Class Log</Dialog.Title>
-          <Dialog.Content>
+          <View style={dStyles.dialogHeader}>
+            <View style={dStyles.dialogIconBadge}>
+              <MaterialCommunityIcons name="calendar-plus" size={22} color={Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={dStyles.dialogTitle}>Log a Class</Text>
+              <Text style={dStyles.dialogSubtitle}>{tuition.subject}</Text>
+            </View>
+          </View>
+          <Dialog.Content style={dStyles.dialogContent}>
+            <Text style={dStyles.fieldLabel}>Class Date</Text>
             <DatePickerInput
-              label="Date"
+              label=""
               value={classDate}
               onChangeDate={(date) => { setClassDate(date); setClassDateError(''); }}
               outlineColor={Colors.border}
-              activeOutlineColor={GlassDialogPrimary}
+              activeOutlineColor={Colors.primary}
             />
             {classDateError ? <HelperText type="error">{classDateError}</HelperText> : null}
           </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={closeDialog}>Cancel</Button>
-            <Button onPress={handleAddClass} textColor={GlassDialogPrimary}>Add</Button>
+          <Dialog.Actions style={dStyles.dialogActions}>
+            <Button mode="text" textColor={Colors.textSecondary} onPress={closeDialog}>Cancel</Button>
+            <Button mode="contained" buttonColor={Colors.primary} onPress={handleAddClass} style={dStyles.actionBtn}>
+              Add Class
+            </Button>
           </Dialog.Actions>
         </Dialog>
 
-        {/* Add/Edit Homework Dialog */}
+        {/* ── Add/Edit Homework Dialog ── */}
         <Dialog
           visible={dialogMode === 'addHomework' || dialogMode === 'editHomework'}
           onDismiss={closeDialog}
           style={GlassDialog}
         >
-          <Dialog.Title style={GlassDialogTitle}>
-            {dialogMode === 'editHomework' ? 'Edit Homework' : 'Assign Homework'}
-          </Dialog.Title>
-          <Dialog.ScrollArea style={{ maxHeight: 400 }}>
-            <ScrollView>
-              <TextInput
-                mode="outlined"
-                label="Subject *"
-                value={hwSubject}
-                onChangeText={setHwSubject}
-                outlineColor={Colors.border}
-                activeOutlineColor={GlassDialogPrimary}
-                style={styles.dialogInput}
-              />
+          <View style={dStyles.dialogHeader}>
+            <View style={dStyles.dialogIconBadge}>
+              <MaterialCommunityIcons name={dialogMode === 'editHomework' ? 'pencil-outline' : 'book-plus-outline'} size={22} color={Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={dStyles.dialogTitle}>{dialogMode === 'editHomework' ? 'Edit Homework' : 'Assign Homework'}</Text>
+              <Text style={dStyles.dialogSubtitle}>{tuition.subject}</Text>
+            </View>
+          </View>
+          <Dialog.ScrollArea style={{ maxHeight: 420, paddingHorizontal: 0 }}>
+            <ScrollView contentContainerStyle={dStyles.dialogContent}>
+              <Text style={dStyles.fieldLabel}>Subject *</Text>
+              <TextInput mode="outlined" placeholder="Subject name" value={hwSubject} onChangeText={setHwSubject}
+                outlineColor={Colors.border} activeOutlineColor={Colors.primary} style={dStyles.input} outlineStyle={{ borderRadius: BorderRadius.md }} />
               {hwErrors.subject && <HelperText type="error">{hwErrors.subject}</HelperText>}
-              <TextInput
-                mode="outlined"
-                label="Chapter *"
-                value={hwChapter}
-                onChangeText={setHwChapter}
-                outlineColor={Colors.border}
-                activeOutlineColor={GlassDialogPrimary}
-                style={styles.dialogInput}
-              />
+
+              <Text style={dStyles.fieldLabel}>Chapter *</Text>
+              <TextInput mode="outlined" placeholder="e.g. Chapter 5" value={hwChapter} onChangeText={setHwChapter}
+                outlineColor={Colors.border} activeOutlineColor={Colors.primary} style={dStyles.input} outlineStyle={{ borderRadius: BorderRadius.md }} />
               {hwErrors.chapter && <HelperText type="error">{hwErrors.chapter}</HelperText>}
-              <TextInput
-                mode="outlined"
-                label="Task *"
-                value={hwTask}
-                onChangeText={setHwTask}
-                multiline
-                numberOfLines={3}
-                outlineColor={Colors.border}
-                activeOutlineColor={GlassDialogPrimary}
-                style={styles.dialogInput}
-              />
+
+              <Text style={dStyles.fieldLabel}>Task *</Text>
+              <TextInput mode="outlined" placeholder="Describe the task…" value={hwTask} onChangeText={setHwTask}
+                multiline numberOfLines={3} outlineColor={Colors.border} activeOutlineColor={Colors.primary}
+                style={dStyles.input} outlineStyle={{ borderRadius: BorderRadius.md }} />
               {hwErrors.task && <HelperText type="error">{hwErrors.task}</HelperText>}
-              <DatePickerInput
-                label="Due Date *"
-                value={hwDueDate}
-                onChangeDate={setHwDueDate}
-                outlineColor={Colors.border}
-                activeOutlineColor={GlassDialogPrimary}
-                style={styles.dialogInput}
-              />
+
+              <Text style={dStyles.fieldLabel}>Due Date *</Text>
+              <DatePickerInput label="" value={hwDueDate} onChangeDate={setHwDueDate}
+                outlineColor={Colors.border} activeOutlineColor={Colors.primary} style={dStyles.input} />
               {hwErrors.dueDate && <HelperText type="error">{hwErrors.dueDate}</HelperText>}
-              <TextInput
-                mode="outlined"
-                label="Notes (optional)"
-                value={hwNotes}
-                onChangeText={setHwNotes}
-                multiline
-                outlineColor={Colors.border}
-                activeOutlineColor={GlassDialogPrimary}
-                style={styles.dialogInput}
-              />
+
+              <Text style={dStyles.fieldLabel}>Notes <Text style={{ color: Colors.textTertiary }}>(optional)</Text></Text>
+              <TextInput mode="outlined" placeholder="Extra notes for student…" value={hwNotes} onChangeText={setHwNotes}
+                multiline outlineColor={Colors.border} activeOutlineColor={Colors.primary}
+                style={dStyles.input} outlineStyle={{ borderRadius: BorderRadius.md }} />
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button onPress={closeDialog}>Cancel</Button>
-            <Button
-              onPress={dialogMode === 'editHomework' ? handleEditHomework : handleAddHomework}
-              textColor={GlassDialogPrimary}
-            >
-              {dialogMode === 'editHomework' ? 'Update' : 'Assign'}
+          <Dialog.Actions style={dStyles.dialogActions}>
+            <Button mode="text" textColor={Colors.textSecondary} onPress={closeDialog}>Cancel</Button>
+            <Button mode="contained" buttonColor={Colors.primary} style={dStyles.actionBtn}
+              onPress={dialogMode === 'editHomework' ? handleEditHomework : handleAddHomework}>
+              {dialogMode === 'editHomework' ? 'Save Changes' : 'Assign'}
             </Button>
           </Dialog.Actions>
         </Dialog>
 
-        {/* Delete Homework Confirm */}
+        {/* ── Delete Homework Confirm ── */}
         <Dialog visible={dialogMode === 'deleteHomework'} onDismiss={closeDialog} style={GlassDialog}>
-          <Dialog.Title style={GlassDialogTitle}>Delete Homework?</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              Delete &quot;{deletingHw?.chapter}&quot;? This cannot be undone.
+          <View style={dStyles.dialogHeader}>
+            <View style={[dStyles.dialogIconBadge, { backgroundColor: Colors.error + '15' }]}>
+              <MaterialCommunityIcons name="delete-outline" size={22} color={Colors.error} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={dStyles.dialogTitle}>Delete Homework?</Text>
+              <Text style={dStyles.dialogSubtitle}>This cannot be undone</Text>
+            </View>
+          </View>
+          <Dialog.Content style={dStyles.dialogContent}>
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.regular, fontSize: FontSize.sm }}>
+              You are about to delete{' '}
+              <Text style={{ fontFamily: FontFamily.semibold, color: Colors.textPrimary }}>
+                "{deletingHw?.chapter}"
+              </Text>
+              . All associated data will be permanently removed.
             </Text>
           </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={closeDialog}>Cancel</Button>
-            <Button onPress={handleDeleteHomework} textColor={Colors.error}>Delete</Button>
+          <Dialog.Actions style={dStyles.dialogActions}>
+            <Button mode="text" textColor={Colors.textSecondary} onPress={closeDialog}>Cancel</Button>
+            <Button mode="contained" buttonColor={Colors.error} style={dStyles.actionBtn} onPress={handleDeleteHomework}>
+              Delete
+            </Button>
           </Dialog.Actions>
         </Dialog>
 
-        {/* View Homework Details */}
-        <Dialog 
-          visible={dialogMode === 'viewHomework'} 
-          onDismiss={closeDialog}
-          style={GlassDialog}
-        >
-          <Dialog.Title style={GlassDialogTitle}>
-            {viewingHw?.subject} • {viewingHw?.chapter}
-          </Dialog.Title>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-          >
-            <Dialog.ScrollArea>
-              <ScrollView 
-                contentContainerStyle={{ padding: Spacing.md }} 
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                bounces={false}
-                alwaysBounceVertical={false}
-              >
+        {/* ── View Homework Details ── */}
+        <Dialog visible={dialogMode === 'viewHomework'} onDismiss={closeDialog} style={GlassDialog}>
+          <View style={dStyles.dialogHeader}>
+            <View style={dStyles.dialogIconBadge}>
+              <MaterialCommunityIcons name="book-open-outline" size={22} color={Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={dStyles.dialogTitle}>{viewingHw?.subject}</Text>
+              <Text style={dStyles.dialogSubtitle}>Ch: {viewingHw?.chapter}</Text>
+            </View>
+            <Chip
+              icon={viewingHw?.completed ? 'check-circle' : 'clock-outline'}
+              style={{ backgroundColor: viewingHw?.completed ? Colors.successLight : Colors.warningLight, height: 28 }}
+              textStyle={{ color: viewingHw?.completed ? Colors.success : Colors.warning, fontSize: FontSize.xs }}
+            >
+              {viewingHw?.completed ? 'Done' : 'Pending'}
+            </Chip>
+          </View>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={24}>
+            <Dialog.ScrollArea style={{ paddingHorizontal: 0 }}>
+              <ScrollView contentContainerStyle={dStyles.dialogContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {viewingHw && (
                   <>
-                    <View style={styles.hwDetailRow}>
-                      <Text style={styles.hwDetailLabel}>Task</Text>
-                      <Text style={styles.hwDetailValue}>{viewingHw.task}</Text>
+                    <View style={dStyles.detailBlock}>
+                      <Text style={dStyles.detailLabel}>Task</Text>
+                      <Text style={dStyles.detailValue}>{viewingHw.task}</Text>
                     </View>
-                    <View style={styles.hwDetailRow}>
-                      <Text style={styles.hwDetailLabel}>Due Date</Text>
-                      <Text style={styles.hwDetailValue}>{formatDate(viewingHw.dueDate)}</Text>
-                    </View>
-                    {viewingHw.notes && (
-                      <View style={styles.hwDetailRow}>
-                        <Text style={styles.hwDetailLabel}>Notes</Text>
-                        <Text style={styles.hwDetailValue}>{viewingHw.notes}</Text>
+                    <View style={dStyles.detailRow}>
+                      <View style={[dStyles.detailBlock, { flex: 1 }]}>
+                        <Text style={dStyles.detailLabel}>Due Date</Text>
+                        <Text style={dStyles.detailValue}>{formatDate(viewingHw.dueDate)}</Text>
                       </View>
-                    )}
-                    <View style={styles.hwDetailRow}>
-                      <Text style={styles.hwDetailLabel}>Status</Text>
-                      <Chip
-                        icon={viewingHw.completed ? 'check-circle' : 'clock-outline'}
-                        style={{ 
-                          backgroundColor: viewingHw.completed ? Colors.success + '22' : Colors.warning + '22', 
-                          alignSelf: 'flex-start' 
-                        }}
-                        textStyle={{ color: viewingHw.completed ? Colors.success : Colors.warning }}
-                      >
-                        {viewingHw.completed ? 'Completed' : 'Pending'}
-                      </Chip>
+                      {viewingHw.notes && (
+                        <View style={[dStyles.detailBlock, { flex: 1 }]}>
+                          <Text style={dStyles.detailLabel}>Notes</Text>
+                          <Text style={dStyles.detailValue}>{viewingHw.notes}</Text>
+                        </View>
+                      )}
                     </View>
-                    
+
                     <Divider style={{ marginVertical: Spacing.md }} />
-                    
-                    <Text variant="titleSmall" style={{ fontFamily: FontFamily.semibold, marginBottom: Spacing.sm }}>
-                      Comments ({viewingHw.comments.length})
-                    </Text>
-                    
+                    <Text style={dStyles.fieldLabel}>Comments ({viewingHw.comments.length})</Text>
+
                     {viewingHw.comments.length === 0 ? (
-                      <Text style={{ color: Colors.textSecondary, fontStyle: 'italic', marginBottom: Spacing.sm }}>
-                        No comments yet. Add one below!
+                      <Text style={{ color: Colors.textTertiary, fontSize: FontSize.xs, fontStyle: 'italic', marginBottom: Spacing.sm }}>
+                        No comments yet. Be the first!
                       </Text>
                     ) : (
-                      <View style={{ marginBottom: Spacing.sm }}>
+                      <View style={{ gap: Spacing.sm, marginBottom: Spacing.sm }}>
                         {viewingHw.comments.map((comment: any) => (
-                          <View 
-                            key={comment.id} 
-                            style={[
-                              styles.commentBox,
-                              comment.role === 'teacher' ? styles.teacherComment : styles.studentComment
-                            ]}
-                          >
+                          <View key={comment.id} style={[styles.commentBox, comment.role === 'teacher' ? styles.teacherComment : styles.studentComment]}>
                             <View style={styles.commentHeader}>
-                              <Text style={styles.commentAuthor}>
-                                {comment.userName} {comment.role === 'teacher' ? '(Teacher)' : '(Student)'}
-                              </Text>
+                              <Text style={styles.commentAuthor}>{comment.userName} {comment.role === 'teacher' ? '(Teacher)' : '(Student)'}</Text>
                               <Text style={styles.commentTime}>{formatTime(comment.timestamp)}</Text>
                             </View>
                             <Text style={styles.commentText}>{comment.text}</Text>
@@ -786,29 +808,16 @@ export default function TuitionDetailScreen() {
                         ))}
                       </View>
                     )}
-                    
-                    {/* Add Comment */}
+
                     <View style={styles.addCommentRow}>
                       <TextInput
-                        mode="outlined"
-                        placeholder="Add a comment..."
-                        value={commentText}
-                        onChangeText={setCommentText}
-                        multiline
-                        dense
-                        style={styles.commentInput}
-                        disabled={isSending}
-                        outlineColor={Colors.border}
-                        activeOutlineColor={GlassDialogPrimary}
+                        mode="outlined" placeholder="Add a comment…" value={commentText} onChangeText={setCommentText}
+                        multiline dense style={styles.commentInput} disabled={isSending}
+                        outlineColor={Colors.border} activeOutlineColor={Colors.primary}
+                        outlineStyle={{ borderRadius: BorderRadius.md }}
                       />
-                      <Button
-                        mode="contained"
-                        onPress={() => handleAddComment(viewingHw.id, user?.id ?? '', user?.name ?? 'Teacher')}
-                        disabled={!commentText.trim() || isSending}
-                        loading={isSending}
-                        compact
-                        buttonColor={GlassDialogPrimary}
-                      >
+                      <Button mode="contained" onPress={() => handleAddComment(viewingHw.id, user?.id ?? '', user?.name ?? 'Teacher')}
+                        disabled={!commentText.trim() || isSending} loading={isSending} compact buttonColor={Colors.primary}>
                         Send
                       </Button>
                     </View>
@@ -817,111 +826,98 @@ export default function TuitionDetailScreen() {
               </ScrollView>
             </Dialog.ScrollArea>
           </KeyboardAvoidingView>
-          <Dialog.Actions>
-            <Button onPress={closeDialog}>Close</Button>
+          <Dialog.Actions style={dStyles.dialogActions}>
+            <Button mode="text" textColor={Colors.textSecondary} onPress={closeDialog}>Close</Button>
           </Dialog.Actions>
         </Dialog>
 
-        {/* Payment Dialog */}
+        {/* ── Payment Dialog ── */}
         <Dialog visible={dialogMode === 'payment'} onDismiss={closeDialog} style={GlassDialog}>
-          <Dialog.Title style={GlassDialogTitle}>Update Payment</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium" style={{ marginBottom: Spacing.md }}>
-              Current: <Text style={{ fontFamily: FontFamily.semibold }}>
-                {paymentLabel(tuition.paymentStatus)}
-              </Text>
-            </Text>
-            {(['paid', 'partial', 'not_paid'] as PaymentStatus[]).map((s) => (
-              <Button
-                key={s}
-                mode={tuition.paymentStatus === s ? 'contained' : 'outlined'}
-                onPress={async () => {
-                  try {
-                    if (!tuition.salary) {
-                      setSnackMsg('Please set monthly fee in tuition details');
-                      return;
-                    }
-                    await updatePaymentStatus(
-                      tuition.id,
-                      user?.id ?? '',
-                      tuition.studentId || '', // Allow empty studentId
-                      currentMonth,
-                      s,
-                      tuition.salary
-                    );
-                    setSnackMsg(`Payment updated to ${paymentLabel(s)}`);
-                    closeDialog();
-                  } catch (error) {
-                    console.error('Payment update error:', error);
-                    const errorMsg = error instanceof Error ? error.message : 'Failed to update payment status';
-                    setSnackMsg(errorMsg);
-                  }
-                }}
-                style={{ marginBottom: Spacing.sm }}
-                buttonColor={tuition.paymentStatus === s ? GlassDialogPrimary : undefined}
-                textColor={tuition.paymentStatus === s ? Colors.backgroundDeep : GlassDialogPrimary}
-              >
-                {paymentLabel(s)}
-              </Button>
-            ))}
-            
+          <View style={dStyles.dialogHeader}>
+            <View style={dStyles.dialogIconBadge}>
+              <MaterialCommunityIcons name="cash-multiple" size={22} color={Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={dStyles.dialogTitle}>Update Payment</Text>
+              <Text style={dStyles.dialogSubtitle}>Current: {paymentLabel(tuition.paymentStatus)}</Text>
+            </View>
+          </View>
+          <Dialog.Content style={dStyles.dialogContent}>
+            <View style={{ gap: Spacing.sm }}>
+              {(['paid', 'partial', 'not_paid'] as PaymentStatus[]).map((s) => {
+                const isActive = tuition.paymentStatus === s;
+                const color = s === 'paid' ? Colors.success : s === 'partial' ? Colors.warning : Colors.error;
+                return (
+                  <TouchableOpacity
+                    key={s}
+                    onPress={async () => {
+                      try {
+                        if (!tuition.salary) { setSnackMsg('Please set monthly fee first'); return; }
+                        await updatePaymentStatus(tuition.id, user?.id ?? '', tuition.studentId || '', currentMonth, s, tuition.salary);
+                        setSnackMsg(`Payment updated to ${paymentLabel(s)}`);
+                        closeDialog();
+                      } catch (error) {
+                        setSnackMsg(error instanceof Error ? error.message : 'Failed to update payment');
+                      }
+                    }}
+                    style={[dStyles.paymentOption, isActive && { borderColor: color, backgroundColor: color + '10' }]}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[dStyles.paymentDot, { backgroundColor: color }]} />
+                    <Text style={[dStyles.paymentLabel, isActive && { color, fontFamily: FontFamily.semibold }]}>
+                      {paymentLabel(s)}
+                    </Text>
+                    {isActive && <MaterialCommunityIcons name="check-circle" size={18} color={color} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
             <Divider style={{ marginVertical: Spacing.md }} />
-            
-            <Button
-              mode="contained-tonal"
-              icon="file-download"
-              onPress={handleDownloadReceipt}
-              style={{ marginTop: Spacing.sm }}
-              buttonColor={Colors.accent + '22'}
-              textColor={Colors.accent}
-            >
+            <Button mode="outlined" icon="file-download" onPress={handleDownloadReceipt}
+              textColor={Colors.primary} style={{ borderColor: Colors.primary, borderRadius: BorderRadius.md }}>
               Download Payment Receipt
             </Button>
           </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={closeDialog}>Close</Button>
+          <Dialog.Actions style={dStyles.dialogActions}>
+            <Button mode="text" textColor={Colors.textSecondary} onPress={closeDialog}>Close</Button>
           </Dialog.Actions>
         </Dialog>
 
-        {/* Invite Student Dialog */}
+        {/* ── Invite Student Dialog ── */}
         <Dialog visible={dialogMode === 'inviteStudent'} onDismiss={closeDialog} style={GlassDialog}>
-          <Dialog.Title style={GlassDialogTitle}>Invite Student</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium" style={{ color: Colors.textSecondary, marginBottom: Spacing.md }}>
-              Share the details below with your student so they can join this tuition on TuitionTrack.
+          <View style={dStyles.dialogHeader}>
+            <View style={dStyles.dialogIconBadge}>
+              <MaterialCommunityIcons name="account-plus-outline" size={22} color={Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={dStyles.dialogTitle}>Invite Student</Text>
+              <Text style={dStyles.dialogSubtitle}>Share code to join</Text>
+            </View>
+          </View>
+          <Dialog.Content style={dStyles.dialogContent}>
+            <Text style={{ color: Colors.textSecondary, fontSize: FontSize.xs, fontFamily: FontFamily.regular, marginBottom: Spacing.md }}>
+              Share this invite code with your student so they can join on TuitionTrack.
             </Text>
-            <View style={styles.inviteBox}>
-              <Text style={styles.inviteLabel}>Tuition</Text>
-              <Text style={styles.inviteValue}>{tuition.subject}</Text>
+            <View style={dStyles.inviteInfoRow}>
+              <MaterialCommunityIcons name="book-education-outline" size={15} color={Colors.textTertiary} />
+              <Text style={dStyles.inviteInfoText}>{tuition.subject}</Text>
             </View>
-            <View style={styles.inviteBox}>
-              <Text style={styles.inviteLabel}>Schedule</Text>
-              <Text style={styles.inviteValue}>{tuition.schedule} · {tuition.startTime} – {tuition.endTime}</Text>
+            <View style={dStyles.inviteInfoRow}>
+              <MaterialCommunityIcons name="clock-outline" size={15} color={Colors.textTertiary} />
+              <Text style={dStyles.inviteInfoText}>{tuition.schedule} · {tuition.startTime} – {tuition.endTime}</Text>
             </View>
-            <View style={[styles.inviteBox, styles.inviteCodeBox]}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inviteLabel}>Invite Code</Text>
-                  <Text style={styles.inviteCode}>{inviteCode}</Text>
-                </View>
-                <IconButton
-                  icon="content-copy"
-                  iconColor={Colors.accent}
-                  size={20}
-                  onPress={handleCopyCode}
-                />
+            <View style={dStyles.inviteCodeCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={dStyles.inviteCodeLabel}>Invite Code</Text>
+                <Text style={dStyles.inviteCodeText}>{inviteCode}</Text>
               </View>
+              <IconButton icon="content-copy" iconColor={Colors.primary} size={22} onPress={handleCopyCode} />
             </View>
           </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={closeDialog}>Cancel</Button>
-            <Button
-              mode="contained"
-              icon="share-variant"
-              buttonColor={GlassDialogPrimary}
-              textColor={Colors.backgroundDeep}
-              onPress={() => { handleInviteStudent(); closeDialog(); }}
-            >
+          <Dialog.Actions style={dStyles.dialogActions}>
+            <Button mode="text" textColor={Colors.textSecondary} onPress={closeDialog}>Cancel</Button>
+            <Button mode="contained" icon="share-variant" buttonColor={Colors.primary} style={dStyles.actionBtn}
+              onPress={() => { handleInviteStudent(); closeDialog(); }}>
               Share
             </Button>
           </Dialog.Actions>
@@ -985,8 +981,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   appbar: { backgroundColor: Colors.backgroundDeep },
-  appbarTitle: { color: Colors.textOnPrimary, fontSize: FontSize.md, fontFamily: FontFamily.semibold },
-  appbarSubtitle: { color: Colors.textOnPrimary + 'CC', fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  appbarTitle: { color: Colors.textPrimary, fontSize: FontSize.md, fontFamily: FontFamily.semibold },
+  appbarSubtitle: { color: Colors.textPrimary + 'CC', fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   appbarBadge: { marginRight: Spacing.sm, height: 28 },
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   card: {
@@ -1026,14 +1022,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border + '60',
   },
-  hwRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  hwHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  hwRow: { flexDirection: 'row', alignItems: 'center' },
+  hwSubjectTitle: { fontFamily: FontFamily.semibold, color: Colors.textPrimary, fontSize: FontSize.sm, marginBottom: 2 },
+  hwTaskHighlight: { color: Colors.textSecondary, fontFamily: FontFamily.regular, fontSize: FontSize.sm, marginBottom: Spacing.sm },
   hwChapter: { fontFamily: FontFamily.semibold, color: Colors.textPrimary },
   hwTask: { color: Colors.textSecondary, marginTop: 2, fontFamily: FontFamily.regular },
-  hwMetaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: 4 },
-  hwMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  hwMetaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 2, flexWrap: 'wrap' },
+  hwMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  hwMetaText: { color: Colors.textTertiary, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  hwMetaDot: { color: Colors.textTertiary, fontSize: FontSize.xs },
   hwDue: { color: Colors.warning, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   hwNotes: { color: Colors.textSecondary, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular, fontStyle: 'italic' },
   hwComments: { color: Colors.info, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  hwCommentsBlue: { color: Colors.primary, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   hwActions: { flexDirection: 'row', alignItems: 'center' },
   hwDetailRow: { marginBottom: Spacing.md },
   hwDetailLabel: { fontSize: FontSize.xs, color: Colors.textTertiary, fontFamily: FontFamily.semibold, textTransform: 'uppercase', marginBottom: 4 },
@@ -1101,5 +1103,133 @@ const styles = StyleSheet.create({
     color: Colors.accent,
     letterSpacing: 1.5,
     paddingVertical: Spacing.xs,
+  },
+});
+
+// ── Dialog-specific styles ─────────────────────────────────────────────────────
+const dStyles = StyleSheet.create({
+  dialogHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.lg,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  dialogIconBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dialogTitle: {
+    fontSize: FontSize.base,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textPrimary,
+  },
+  dialogSubtitle: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.regular,
+    color: Colors.textTertiary,
+    marginTop: 1,
+  },
+  dialogContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  fieldLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+    marginTop: Spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  input: { backgroundColor: Colors.surface, marginBottom: 0 },
+  dialogActions: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: Spacing.sm,
+  },
+  actionBtn: { borderRadius: BorderRadius.md },
+  detailBlock: {
+    backgroundColor: Colors.surfaceVariant,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  detailRow: { flexDirection: 'row', gap: Spacing.sm },
+  detailLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.regular,
+    color: Colors.textPrimary,
+  },
+  paymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.surface,
+  },
+  paymentDot: { width: 10, height: 10, borderRadius: 5 },
+  paymentLabel: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.medium,
+    color: Colors.textPrimary,
+  },
+  inviteInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  inviteInfoText: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    flex: 1,
+  },
+  inviteCodeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '08',
+    borderWidth: 1.5,
+    borderColor: Colors.primary + '30',
+    borderRadius: BorderRadius.lg,
+    paddingLeft: Spacing.lg,
+    marginTop: Spacing.sm,
+  },
+  inviteCodeLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  inviteCodeText: {
+    fontSize: FontSize.xl,
+    fontFamily: FontFamily.bold,
+    color: Colors.primary,
+    letterSpacing: 2,
   },
 });

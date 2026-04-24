@@ -1,4 +1,5 @@
 import { BorderRadius, Colors, FontSize, FontWeight, Spacing } from '@/constants/Colors';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
     KeyboardTypeOptions,
@@ -53,10 +54,17 @@ export default function AppInput({
           focused && styles.inputFocused,
           !!error && styles.inputError,
           !editable && styles.inputDisabled,
-          multiline && { height: numberOfLines * 44 },
+          multiline && { height: 'auto', minHeight: Math.max(50, numberOfLines * 24 + 20) },
         ]}
       >
-        {icon && <Text style={styles.icon}>{icon}</Text>}
+        {icon && (
+          <MaterialCommunityIcons 
+            name={icon as any} 
+            size={20} 
+            color={focused ? Colors.primary : Colors.textTertiary} 
+            style={styles.icon} 
+          />
+        )}
         <TextInput
           style={[styles.input, multiline && styles.multilineInput]}
           value={value}
@@ -76,7 +84,12 @@ export default function AppInput({
         />
         {secureTextEntry && (
           <TouchableOpacity onPress={() => setShowSecret(!showSecret)} style={styles.eyeBtn}>
-            <Text style={styles.eyeIcon}>{showSecret ? '🙈' : '👁️'}</Text>
+            <MaterialCommunityIcons 
+              name={showSecret ? "eye-off-outline" : "eye-outline"} 
+              size={20} 
+              color={Colors.textTertiary} 
+              style={styles.eyeIcon} 
+            />
           </TouchableOpacity>
         )}
       </View>
@@ -89,32 +102,39 @@ const styles = StyleSheet.create({
   container: { marginBottom: Spacing.md },
   label: {
     fontSize: FontSize.sm,
-    fontWeight: FontWeight.medium,
+    fontWeight: FontWeight.semibold,
     color: Colors.textSecondary,
     marginBottom: Spacing.xs,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceVariant,
+    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
-    minHeight: 48,
+    height: 50,
   },
-  inputFocused: { borderColor: Colors.primary, backgroundColor: Colors.surface },
-  inputError: { borderColor: Colors.error },
-  inputDisabled: { opacity: 0.6 },
-  icon: { fontSize: 16, marginRight: Spacing.sm },
+  inputFocused: { 
+    borderColor: Colors.primary, 
+    borderWidth: 1.5,
+  },
+  inputError: { 
+    borderColor: Colors.error, 
+    borderWidth: 1.5, 
+    backgroundColor: Colors.errorLight 
+  },
+  inputDisabled: { opacity: 0.6, backgroundColor: Colors.surfaceVariant },
+  icon: { marginRight: Spacing.sm },
   input: {
     flex: 1,
     fontSize: FontSize.base,
     color: Colors.textPrimary,
-    paddingVertical: Spacing.sm,
+    height: '100%',
   },
-  multilineInput: { textAlignVertical: 'top', paddingTop: Spacing.sm },
+  multilineInput: { textAlignVertical: 'top', paddingTop: Spacing.md, paddingBottom: Spacing.md },
   eyeBtn: { padding: Spacing.xs },
-  eyeIcon: { fontSize: 16 },
-  errorText: { fontSize: FontSize.xs, color: Colors.error, marginTop: 4 },
+  eyeIcon: {},
+  errorText: { fontSize: FontSize.xs, color: Colors.error, marginTop: 4, fontWeight: FontWeight.medium },
 });

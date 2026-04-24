@@ -40,5 +40,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
 });

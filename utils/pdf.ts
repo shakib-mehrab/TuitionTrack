@@ -46,18 +46,15 @@ export async function generateTuitionPDF(
     year: "numeric",
   });
 
-  // Generate filename: StudentName_TuitionRecord_MonthYear.pdf
-  const studentName = (tuition.studentName || "Student").replace(/\s+/g, "_");
-  const monthName = new Date().toLocaleString("default", { month: "long" });
-  const year = new Date().getFullYear();
-  const filename = `${studentName}_TuitionRecord_${monthName}${year}.pdf`;
+  // Generate filename: Monthly Report-Student Name.pdf
+  const studentName = tuition.studentName || "Student";
+  const filename = `Monthly Report-${studentName}.pdf`;
 
   const classRows = classLogs
     .map((log, i) => {
       const d = new Date(log.date);
       const day = DAY_NAMES[d.getDay()];
-      const bg = i % 2 === 0 ? "#181830" : "#1E1E40";
-      return `<tr style="background:${bg}">
+      return `<tr>
       <td style="text-align:center">${classLogs.length - i}</td>
       <td>${fmtDate(log.date)}</td>
       <td style="text-align:center">${day}</td>
@@ -70,12 +67,12 @@ export async function generateTuitionPDF(
     .map((hw, i) => {
       const statusColor = hw.completed ? "#10B981" : "#F59E0B";
       const statusText = hw.completed ? "Done" : "Pending";
-      const bg = i % 2 === 0 ? "#181830" : "#1E1E40";
-      return `<tr style="background:${bg}">
+      return `<tr>
+      <td>${hw.subject}</td>
       <td>${hw.chapter}</td>
       <td>${hw.task}</td>
       <td style="text-align:center">${hw.dueDate}</td>
-      <td style="text-align:center;color:${statusColor};font-weight:600">${statusText}</td>
+      <td style="text-align:center;color:${statusColor};font-weight:700">${statusText}</td>
     </tr>`;
     })
     .join("");
@@ -89,145 +86,157 @@ export async function generateTuitionPDF(
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #12122A;
-      --surface:  #181830;
-      --surface2: #1E1E40;
-      --border:   #2E2E60;
-      --primary:  #EAB308;
-      --accent:   #22D3EE;
-      --text:     #F8FAFC;
-      --muted:    #CBD5E1;
+      --bg:       #F8FAFC;
+      --surface:  #FFFFFF;
+      --surface2: #F1F5F9;
+      --border:   #E2E8F0;
+      --primary:  #6366F1;
+      --accent:   #818CF8;
+      --text:     #1E293B;
+      --muted:    #64748B;
       --success:  #10B981;
       --warning:  #F59E0B;
       --danger:   #EF4444;
     }
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
-      font-size: 13px;
-      line-height: 1.6;
+      font-size: 12px;
+      line-height: 1.5;
     }
 
     /* ── Header bar ── */
     .header {
-      background: #0D0D1E;
-      padding: 16px 24px;
+      background: var(--surface);
+      padding: 20px 32px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 2px solid var(--primary);
+      border-bottom: 1px solid var(--border);
     }
-    .logo { font-size: 20px; font-weight: 700; color: var(--primary); letter-spacing: 0.5px; }
-    .logo span { color: var(--accent); }
-    .gen-date { font-size: 11px; color: var(--muted); }
+    .logo { font-size: 22px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+    .logo span { color: var(--text); opacity: 0.8; }
+    .gen-date { font-size: 11px; color: var(--muted); font-weight: 500; }
 
     /* ── Subject banner ── */
     .banner {
-      background: linear-gradient(135deg, #1E1E40 0%, #2E2E60 100%);
-      padding: 24px;
+      background: var(--surface);
+      padding: 32px 32px 48px 32px;
       border-bottom: 1px solid var(--border);
       position: relative;
     }
     .banner-subject {
-      font-size: 26px; font-weight: 700;
-      color: var(--text); margin-bottom: 4px;
+      font-size: 28px; font-weight: 800;
+      color: var(--primary); margin-bottom: 6px;
+      letter-spacing: -0.5px;
     }
-    .banner-student { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+    .banner-student { font-size: 14px; color: var(--muted); margin-bottom: 16px; font-weight: 500; }
     .badge {
       display: inline-block;
-      padding: 3px 12px;
-      border-radius: 999px;
+      padding: 4px 14px;
+      border-radius: 8px;
       font-size: 11px;
       font-weight: 700;
-      border: 1.5px solid;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .accent-line {
       position: absolute; top: 0; left: 0;
-      width: 4px; height: 100%;
-      background: linear-gradient(180deg, var(--primary), var(--accent));
-      border-radius: 0 2px 2px 0;
+      width: 6px; height: 100%;
+      background: var(--primary);
     }
 
     /* ── Info grid ── */
     .info-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-      margin: 0;
+      gap: 12px;
+      padding: 0 32px;
+      margin-top: -24px;
+      position: relative;
+      z-index: 10;
     }
     .info-cell {
-      background: var(--surface);
-      padding: 12px 16px;
+      background: var(--surface2);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
     }
-    .info-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .info-value { font-size: 13px; font-weight: 600; color: var(--text); }
+    .info-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; }
+    .info-value { font-size: 14px; font-weight: 700; color: var(--text); }
 
     /* ── Section ── */
-    section { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    section { padding: 24px 32px; }
     .section-title {
-      font-size: 14px; font-weight: 700;
-      color: var(--accent);
+      font-size: 13px; font-weight: 800;
+      color: var(--text);
       letter-spacing: 0.5px;
       text-transform: uppercase;
-      margin-bottom: 14px;
-      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 18px;
+      display: flex; align-items: center; gap: 10px;
     }
     .section-title::after {
-      content: ''; flex: 1; height: 1px;
-      background: linear-gradient(90deg, var(--accent), transparent);
+      content: ''; flex: 1; height: 2px;
+      background: var(--border);
+      border-radius: 2px;
     }
 
     /* ── Progress pills ── */
-    .pills { display: flex; gap: 12px; margin-bottom: 14px; }
+    .pills { display: flex; gap: 16px; margin-bottom: 20px; }
     .pill {
-      flex: 1; text-align: center;
-      padding: 12px 8px;
-      border-radius: 10px;
-      border: 1.5px solid;
+      flex: 1; text-align: left;
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
     }
-    .pill-value { font-size: 22px; font-weight: 700; display: block; }
-    .pill-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .pill-value { font-size: 24px; font-weight: 800; display: block; margin-bottom: 2px; }
+    .pill-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
 
     /* ── Progress bar ── */
     .progress-track {
       background: var(--border);
-      border-radius: 999px;
-      height: 10px;
+      border-radius: 6px;
+      height: 8px;
       overflow: hidden;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .progress-fill {
-      background: linear-gradient(90deg, var(--primary), var(--accent));
+      background: var(--primary);
       height: 100%;
-      border-radius: 999px;
+      border-radius: 6px;
     }
-    .progress-note { font-size: 11px; color: var(--muted); text-align: right; }
+    .progress-note { font-size: 11px; color: var(--muted); text-align: right; font-weight: 600; }
 
     /* ── Tables ── */
-    table { width: 100%; border-collapse: collapse; }
-    thead tr { background: var(--surface2); }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; }
     th {
-      padding: 10px 12px; text-align: left;
-      font-size: 10px; font-weight: 700;
-      color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;
-      border-bottom: 1px solid var(--border);
+      padding: 12px 16px; text-align: left;
+      font-size: 10px; font-weight: 800;
+      color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+      background: var(--surface2);
+      border-bottom: 2px solid var(--border);
     }
-    td { padding: 9px 12px; font-size: 12px; color: var(--text); }
-    .empty-row td { text-align: center; color: var(--muted); padding: 20px; }
+    th:first-child { border-top-left-radius: 8px; }
+    th:last-child { border-top-right-radius: 8px; }
+    
+    td { padding: 12px 16px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); background: var(--surface); }
+    tr:last-child td:first-child { border-bottom-left-radius: 8px; }
+    tr:last-child td:last-child { border-bottom-right-radius: 8px; }
+
+    .empty-row td { text-align: center; color: var(--muted); padding: 32px; font-style: italic; }
 
     /* ── Footer ── */
     .footer {
-      background: #0D0D1E;
-      padding: 14px 24px;
+      padding: 32px;
       text-align: center;
       font-size: 11px;
       color: var(--muted);
       border-top: 1px solid var(--border);
+      background: var(--surface);
     }
-    .footer strong { color: var(--primary); }
+    .footer strong { color: var(--primary); font-weight: 800; }
   </style>
 </head>
 <body>
@@ -244,7 +253,7 @@ export async function generateTuitionPDF(
       ${tuition.studentName ?? "No student assigned"}
       ${tuition.studentEmail ? ` &bull; ${tuition.studentEmail}` : ""}
     </div>
-    <span class="badge" style="border-color:${paidColor};color:${paidColor}">
+    <span class="badge" style="background:${paidColor}15;color:${paidColor};border:1px solid ${paidColor}40">
       ${paymentLabel(tuition.paymentStatus)}
     </span>
   </div>
@@ -279,16 +288,16 @@ export async function generateTuitionPDF(
   <section>
     <div class="section-title">Monthly Progress — ${monthLabel}</div>
     <div class="pills">
-      <div class="pill" style="border-color:#EAB308">
-        <span class="pill-value" style="color:#FACC15">${planned}</span>
+      <div class="pill">
+        <span class="pill-value" style="color:var(--text)">${planned}</span>
         <span class="pill-label">Planned</span>
       </div>
-      <div class="pill" style="border-color:#10B981">
-        <span class="pill-value" style="color:#34D399">${classCount}</span>
+      <div class="pill">
+        <span class="pill-value" style="color:var(--success)">${classCount}</span>
         <span class="pill-label">Done</span>
       </div>
-      <div class="pill" style="border-color:#F59E0B">
-        <span class="pill-value" style="color:#FBBF24">${remaining}</span>
+      <div class="pill">
+        <span class="pill-value" style="color:var(--warning)">${remaining}</span>
         <span class="pill-label">Remaining</span>
       </div>
     </div>
@@ -320,21 +329,21 @@ export async function generateTuitionPDF(
     <table>
       <thead>
         <tr>
-          <th style="width:28%">Chapter</th>
-          <th style="width:38%">Task</th>
-          <th style="text-align:center;width:18%">Due Date</th>
-          <th style="text-align:center;width:16%">Status</th>
+          <th style="width:18%">Subject</th>
+          <th style="width:20%">Chapter</th>
+          <th style="width:30%">Task</th>
+          <th style="text-align:center;width:17%">Due Date</th>
+          <th style="text-align:center;width:15%">Status</th>
         </tr>
       </thead>
       <tbody>
-        ${hwRows || '<tr class="empty-row"><td colspan="4">No homework assigned</td></tr>'}
+        ${hwRows || '<tr class="empty-row"><td colspan="5">No homework assigned</td></tr>'}
       </tbody>
     </table>
   </section>
 
   <div class="footer">
     Generated by <strong>TuitionTrack</strong> &bull; ${new Date().toISOString().slice(0, 10)}
-    ${tuition.salary ? ` &bull; Monthly Salary ৳${tuition.salary.toLocaleString("en-IN")}` : ""}
   </div>
 
 </body>
@@ -381,13 +390,9 @@ export async function generatePaymentReceipt(
     year: "numeric",
   });
 
-  // Generate filename: StudentName_Payment_MonthYear.pdf
-  const studentName = (tuition.studentName || "Student").replace(/\s+/g, "_");
-  const monthName = new Date(month + "-01").toLocaleString("default", {
-    month: "long",
-  });
-  const year = new Date(month + "-01").getFullYear();
-  const filename = `${studentName}_Payment_${monthName}${year}.pdf`;
+  // Generate filename: Payment Receipt-Student Name.pdf
+  const studentName = tuition.studentName || "Student";
+  const filename = `Payment Receipt-${studentName}.pdf`;
 
   const amountPaid =
     tuition.paymentStatus === "paid"
@@ -408,47 +413,43 @@ export async function generatePaymentReceipt(
       --bg:       #FFFFFF;
       --surface:  #F8FAFC;
       --border:   #E2E8F0;
-      --primary:  #EAB308;
-      --accent:   #22D3EE;
+      --primary:  #6366F1;
+      --accent:   #818CF8;
       --text:     #1E293B;
       --muted:    #64748B;
       --success:  #10B981;
       --warning:  #F59E0B;
     }
     body {
-      font-family: 'Georgia', 'Times New Roman', serif;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
       font-size: 13px;
       line-height: 1.5;
-      padding: 15px 10px;
+      padding: 0;
     }
     .container {
-      max-width: 650px;
+      max-width: 800px;
       margin: 0 auto;
       background: white;
-      border: 2px solid var(--border);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     }
     .header {
-      background: linear-gradient(135deg, #EAB308 0%, #22D3EE 100%);
-      padding: 18px 24px;
-      text-align: center;
-      border-bottom: 3px solid var(--primary);
+      background: var(--primary);
+      padding: 32px;
+      text-align: left;
+      border-bottom: none;
     }
     .header-title {
-      font-size: 26px;
-      font-weight: 700;
+      font-size: 32px;
+      font-weight: 800;
       color: white;
-      letter-spacing: 1px;
+      letter-spacing: -1px;
       margin-bottom: 4px;
-      text-transform: uppercase;
     }
     .header-subtitle {
       font-size: 14px;
-      color: rgba(255, 255, 255, 0.9);
-      font-weight: 400;
-      font-style: italic;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 500;
     }
     .memo-header {
       background: var(--surface);
@@ -574,8 +575,8 @@ export async function generatePaymentReceipt(
     .footer-note {
       font-size: 10px;
       color: var(--muted);
-      font-style: italic;
-      line-height: 1.5;
+      font-weight: 500;
+      line-height: 1.6;
     }
     .watermark {
       position: fixed;
@@ -583,7 +584,7 @@ export async function generatePaymentReceipt(
       left: 50%;
       transform: translate(-50%, -50%) rotate(-45deg);
       font-size: 80px;
-      color: rgba(234, 179, 8, 0.02);
+      color: rgba(99, 102, 241, 0.03);
       font-weight: 900;
       pointer-events: none;
       z-index: 0;

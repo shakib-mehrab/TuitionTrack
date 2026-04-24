@@ -75,6 +75,7 @@ export default function StudentTuitionDetail() {
   const [viewingHwId, setViewingHwId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [showFinishedHw, setShowFinishedHw] = useState(false);
 
   const tuition = getTuitionById(id);
 
@@ -140,14 +141,17 @@ export default function StudentTuitionDetail() {
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => router.back()} color={Colors.textOnPrimary} />
+        <Appbar.BackAction onPress={() => router.back()} color={Colors.textPrimary} />
         <Appbar.Content
           title={tuition.subject}
+          subtitle={tuition.studentName ?? ''}
           titleStyle={styles.appbarTitle}
+          subtitleStyle={{ color: Colors.textPrimary + '99', fontSize: FontSize.xs, fontFamily: FontFamily.regular }}
         />
         <Appbar.Action
           icon="file-pdf-box"
-          color={Colors.accent}
+          color={Colors.primary}
+          size={22}
           onPress={handleDownloadPDF}
         />
         <Chip
@@ -232,68 +236,74 @@ export default function StudentTuitionDetail() {
         {/* Homework (Interactive) */}
         <Card style={[styles.card, { marginBottom: Spacing['2xl'] }]} mode="elevated">
           <Card.Content>
-            <Text variant="titleSmall" style={styles.cardTitle}>
-              Homework ({homeworkList.length})
-            </Text>
-            {homeworkList.length === 0 ? (
-              <Text style={styles.emptyText}>No homework assigned yet.</Text>
-            ) : (
-              homeworkList.map((hw, idx) => (
+            <View style={styles.sectionHeader}>
+              <Text variant="titleSmall" style={styles.cardTitle}>
+                Homework ({homeworkList.length})
+              </Text>
+              <Button
+                mode="text"
+                compact
+                textColor={showFinishedHw ? Colors.textSecondary : Colors.primary}
+                onPress={() => setShowFinishedHw(!showFinishedHw)}
+                labelStyle={{ fontSize: 11 }}
+              >
+                {showFinishedHw ? 'Pending' : `Done (${homeworkList.filter(h => h.completed).length})`}
+              </Button>
+            </View>
+            {(() => {
+              const filtered = homeworkList.filter(h => showFinishedHw ? h.completed : !h.completed);
+              if (homeworkList.length === 0) {
+                return <Text style={styles.emptyText}>No homework assigned yet.</Text>;
+              }
+              if (filtered.length === 0) {
+                return <Text style={styles.emptyText}>{showFinishedHw ? 'No completed homework.' : 'All homework done! 🎉'}</Text>;
+              }
+              return filtered.map((hw, idx) => (
                 <View key={hw.id}>
                   {idx > 0 && <Divider style={{ marginVertical: Spacing.sm }} />}
                   <TouchableOpacity onPress={() => setViewingHwId(hw.id)} activeOpacity={0.7} style={styles.hwItem}>
-                    <View style={styles.hwRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          variant="bodyMedium"
-                          style={[
-                            styles.hwChapter,
-                            hw.completed && styles.strikethrough,
-                          ]}
-                        >
-                          {hw.subject}
-                        </Text>
-                        <Text variant="bodySmall" style={styles.hwTask}>
-                          Chapter: {hw.chapter}
-                        </Text>
-                        <Text variant="bodySmall" style={styles.hwTask}>
-                          Task: {hw.task}
-                        </Text>
-                        <View style={styles.hwMetaRow}>
-                          <View style={styles.hwMetaItem}>
-                            <MaterialCommunityIcons name="calendar-clock" size={14} color={Colors.warning} />
-                            <Text variant="bodySmall" style={styles.hwDue}>
-                              {formatDate(hw.dueDate)}
-                            </Text>
-                          </View>
-                          {hw.comments.length > 0 && (
-                            <View style={styles.hwMetaItem}>
-                              <MaterialCommunityIcons name="comment-multiple" size={14} color={Colors.info} />
-                              <Text variant="bodySmall" style={styles.hwComments}>
-                                {hw.comments.length}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
+                    {/* Subject row with status chip */}
+                    <View style={styles.hwHeaderRow}>
+                      <Text variant="titleSmall" style={[styles.hwSubjectTitle, hw.completed && styles.strikethrough]}>
+                        {hw.subject}
+                      </Text>
+                      <Chip
+                        style={hw.completed ? styles.doneChip : styles.pendingChip}
+                        textStyle={{
+                          color: hw.completed ? Colors.success : Colors.warning,
+                          fontSize: FontSize.xs,
+                          fontFamily: FontFamily.semibold
+                        }}
+                        icon={hw.completed ? 'check-circle' : 'clock-outline'}
+                      >
+                        {hw.completed ? 'Done' : 'Pending'}
+                      </Chip>
+                    </View>
+                    {/* Task */}
+                    <Text variant="bodySmall" style={styles.hwTaskHighlight}>
+                      {hw.task}
+                    </Text>
+                    {/* Meta row: Chapter · Date · Comments */}
+                    <View style={styles.hwMetaRow}>
+                      <View style={styles.hwMetaItem}>
+                        <MaterialCommunityIcons name="book-open-outline" size={13} color={Colors.textTertiary} />
+                        <Text style={styles.hwMetaText}>Ch: {hw.chapter}</Text>
                       </View>
-                      <View style={styles.hwActions}>
-                        <Chip
-                          style={hw.completed ? styles.doneChip : styles.pendingChip}
-                          textStyle={{ 
-                            color: hw.completed ? Colors.success : Colors.warning, 
-                            fontSize: FontSize.xs, 
-                            fontFamily: FontFamily.semibold 
-                          }}
-                          icon={hw.completed ? 'check-circle' : 'clock-outline'}
-                        >
-                          {hw.completed ? 'Done' : 'Pending'}
-                        </Chip>
+                      <Text style={styles.hwMetaDot}>·</Text>
+                      <View style={styles.hwMetaItem}>
+                        <MaterialCommunityIcons name="calendar-clock" size={13} color={Colors.warning} />
+                        <Text style={styles.hwDue}>{formatDate(hw.dueDate)}</Text>
+                      </View>
+                      <Text style={styles.hwMetaDot}>·</Text>
+                      <View style={styles.hwMetaItem}>
+                        <MaterialCommunityIcons name="comment-outline" size={13} color={Colors.primary} />
+                        <Text style={styles.hwCommentsBlue}>{hw.comments.length}</Text>
                       </View>
                     </View>
                   </TouchableOpacity>
                 </View>
-              ))
-            )}
+              ));
+            })()}
           </Card.Content>
         </Card>
       </ScrollView>
@@ -455,7 +465,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   appbar: { backgroundColor: Colors.backgroundDeep },
   appbarTitle: {
-    color: Colors.textOnPrimary,
+    color: Colors.textPrimary,
     fontSize: FontSize.md,
     fontFamily: FontFamily.semibold,
   },
@@ -492,6 +502,7 @@ const styles = StyleSheet.create({
   },
   statPillValue: { fontSize: FontSize.lg, fontFamily: FontFamily.bold },
   statPillLabel: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2, fontFamily: FontFamily.regular },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   progressBar: { height: 8, borderRadius: 4, backgroundColor: Colors.border },
   progressText: { color: Colors.textSecondary, textAlign: 'right', marginTop: 4, fontFamily: FontFamily.regular },
   tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.xs },
@@ -517,14 +528,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border + '60',
   },
-  hwRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  hwHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  hwRow: { flexDirection: 'row', alignItems: 'center' },
+  hwSubjectTitle: { fontFamily: FontFamily.semibold, color: Colors.textPrimary, fontSize: FontSize.sm, marginBottom: 2 },
+  hwTaskHighlight: { color: Colors.textSecondary, fontFamily: FontFamily.regular, fontSize: FontSize.sm, marginBottom: Spacing.sm },
   hwChapter: { fontFamily: FontFamily.semibold, color: Colors.textPrimary },
   hwTask: { color: Colors.textSecondary, marginTop: 2, fontFamily: FontFamily.regular },
-  hwMetaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: 4 },
-  hwMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  hwMetaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 2, flexWrap: 'wrap' },
+  hwMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  hwMetaText: { color: Colors.textTertiary, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  hwMetaDot: { color: Colors.textTertiary, fontSize: FontSize.xs },
   hwDue: { color: Colors.warning, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   hwNotes: { color: Colors.info, marginTop: 2, fontSize: FontSize.xs, fontFamily: FontFamily.regular, fontStyle: 'italic' },
   hwComments: { color: Colors.primary, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  hwCommentsBlue: { color: Colors.primary, fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   hwActions: { flexDirection: 'row', alignItems: 'center' },
   strikethrough: { textDecorationLine: 'line-through', color: Colors.textTertiary },
   doneChip: { backgroundColor: Colors.successLight, height: 28, alignSelf: 'flex-start' },
