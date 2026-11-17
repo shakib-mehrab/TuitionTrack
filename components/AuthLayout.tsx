@@ -5,7 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useInsets } from "@/lib/insets";
 
 export function LogoMark({ size = 52, inverted }: { size?: number; inverted?: boolean }) {
   return (
@@ -28,7 +28,7 @@ export function AuthLayout({
   footer?: React.ReactNode;
   back?: boolean;
 }) {
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const router = useRouter();
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: C.primary }}>

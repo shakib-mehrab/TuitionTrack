@@ -126,9 +126,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initializeAuth: async () => {
     set({ isLoading: true });
+    // Resolve once the first auth state is known, so the app doesn't flash the sign-in screen
+    // while a saved session is being restored.
+    let resolveFirst: () => void = () => {};
+    const firstState = new Promise<void>((r) => (resolveFirst = r));
+    const timeout = setTimeout(() => resolveFirst(), 8000);
     try {
       // Listen to auth state changes
       AuthService.onAuthStateChanged(async (firebaseUser) => {
+        try {
+          await handleAuthState(firebaseUser);
+        } finally {
+          clearTimeout(timeout);
+          resolveFirst();
+        }
+      });
+      await firstState;
+    } catch (error) {
+      console.error("Auth initialization error:", error);
+      set({ isLoading: false });
+    }
+
+    async function handleAuthState(firebaseUser: Parameters<Parameters<typeof AuthService.onAuthStateChanged>[0]>[0]) {
+      {
         if (firebaseUser) {
           // Check email verification
           if (
@@ -144,8 +164,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return;
           }
 
-          // Get user data from Firestore
-          const user = await AuthService.getCurrentUser();
+          // Get user data from Firestore (retry once: Firestore can be briefly unavailable at startup)
+          let user = await AuthService.getCurrentUser();
+          if (!user) {
+            await new Promise((r) => setTimeout(r, 1500));
+            user = await AuthService.getCurrentUser();
+          }
           if (user) {
             set({
               user,
@@ -169,10 +193,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             isLoading: false,
           });
         }
-      });
-    } catch (error) {
-      console.error("Auth initialization error:", error);
-      set({ isLoading: false });
+      }
     }
   },
 }));

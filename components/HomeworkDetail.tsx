@@ -12,12 +12,12 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useInsets } from "@/lib/insets";
 
 export function HomeworkDetail({ id, role }: { id: string; role: "teacher" | "student" }) {
   const router = useRouter();
   const toast = useToast();
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const user = useAuthStore((s) => s.user);
   const teacher = useTeacherStore();
   const student = useStudentStore();

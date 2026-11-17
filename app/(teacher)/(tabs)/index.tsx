@@ -1,4 +1,5 @@
 // Teacher · Today — today's scheduled classes with one-tap "done", month summary, needs attention.
+import { UpdateCard } from "@/components/UpdateCard";
 import { Avatar, Badge, Bar, Button, Card, EmptyState, Header, IconTile, Loading, Ring, Screen, SectionTitle, T, Tile } from "@/components/kit/core";
 import { useLogClass } from "@/components/LogClass";
 import { C } from "@/constants/theme";
@@ -62,6 +63,7 @@ export default function TeacherToday() {
         title={`Hi, ${firstName(user?.name) || "there"}`}
         right={<Avatar name={user?.name ?? "?"} onPress={() => router.push("/(teacher)/profile")} />}
       />
+      <UpdateCard />
 
       {isLoading && tuitions.length === 0 ? (
         <Loading label="Loading your tuitions…" />

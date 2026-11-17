@@ -8,14 +8,14 @@ import auth from "@react-native-firebase/auth";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useInsets } from "@/lib/insets";
 
 const COOLDOWN = 60;
 
 export default function VerifyEmail() {
   const router = useRouter();
   const toast = useToast();
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const refreshVerification = useAuthStore((s) => s.refreshVerification);
   const resendVerificationEmail = useAuthStore((s) => s.resendVerificationEmail);
   const logout = useAuthStore((s) => s.logout);

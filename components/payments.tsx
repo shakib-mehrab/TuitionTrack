@@ -155,7 +155,10 @@ export function PaymentsList({
             {formatMoney(collected)}
           </T>
           <T w="semibold" size={12} color={C.mintInk}>
-            {rows.filter((r) => r.status === "paid").length} paid months
+            {(() => {
+              const n = rows.filter((r) => r.status === "paid").length;
+              return `${n} paid ${n === 1 ? "month" : "months"}`;
+            })()}
           </T>
         </Card>
       </View>

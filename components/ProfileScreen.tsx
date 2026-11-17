@@ -1,4 +1,5 @@
 import { Avatar, Badge, Button, Card, Header, Screen, T } from "@/components/kit/core";
+import { UpdateCard } from "@/components/UpdateCard";
 import { ConfirmSheet } from "@/components/kit/sheet";
 import { C, R } from "@/constants/theme";
 import { useAuthStore } from "@/store/authStore";
@@ -26,6 +27,7 @@ export function ProfileScreen() {
           <Badge>{user?.role === "teacher" ? "Teacher account" : "Student account"}</Badge>
         </View>
       </Card>
+      <UpdateCard />
       <Button title="Sign out" icon="log-out" variant="outline" size="lg" onPress={() => setConfirm(true)} />
       <T size={12} color={C.muted} style={{ textAlign: "center" }}>
         TuitionTrack {Constants.expoConfig?.version ?? ""}

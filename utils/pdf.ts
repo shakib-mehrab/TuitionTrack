@@ -45,8 +45,8 @@ function statusInfo(status: PaymentStatus | undefined, amount: number | null | u
   return { cls: "unpaid", label: "Not paid" };
 }
 
-async function shareHtml(html: string, filename: string, title: string) {
-  const { uri } = await Print.printToFileAsync({ html, base64: false });
+async function shareHtml(html: string, filename: string, title: string, page?: { width: number; height: number }) {
+  const { uri } = await Print.printToFileAsync({ html, base64: false, ...page });
   // expo-print names files with a random id; give it a readable name before sharing.
   const target = `${FileSystem.cacheDirectory}${filename}`;
   await FileSystem.deleteAsync(target, { idempotent: true });
@@ -189,7 +189,8 @@ export async function generatePaymentSlip(input: SlipInput): Promise<void> {
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Payment slip</title><style>${BASE_CSS}
     @page { size: A5; margin: 0; }
-    body { background: #EEF1FB; padding: 28px; }
+    html, body { background: #EEF1FB; min-height: 100%; }
+    body { padding: 24px; }
     .card { background: #fff; border-radius: 22px; overflow: hidden; }
     .band { background: #5468F0; color: #fff; padding: 22px 26px 24px; }
     .top { display: flex; justify-content: space-between; align-items: center; }
@@ -221,5 +222,6 @@ export async function generatePaymentSlip(input: SlipInput): Promise<void> {
     </div>
   </div></body></html>`;
 
-  await shareHtml(html, `payment-slip-${slug(`${t.subject}-${studentName}-${month}`)}.pdf`, `Payment slip · ${t.subject} · ${monthLabel(month)}`);
+  // A5 portrait in points.
+  await shareHtml(html, `payment-slip-${slug(`${t.subject}-${studentName}-${month}`)}.pdf`, `Payment slip · ${t.subject} · ${monthLabel(month)}`, { width: 420, height: 595 });
 }

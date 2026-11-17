@@ -17,7 +17,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useInsets } from "@/lib/insets";
 
 export type IconName = React.ComponentProps<typeof Feather>["name"];
 
@@ -300,7 +300,7 @@ export function Screen({
   contentStyle,
   ...rest
 }: ScrollViewProps & { children: React.ReactNode; tabBar?: boolean; footer?: React.ReactNode; contentStyle?: StyleProp<ViewStyle> }) {
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   return (
     <View style={{ flex: 1, backgroundColor: C.ground }}>
       <ScrollView

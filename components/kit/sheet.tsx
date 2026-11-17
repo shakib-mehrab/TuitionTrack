@@ -3,7 +3,7 @@ import { C, R } from "@/constants/theme";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useInsets } from "@/lib/insets";
 import { Button, T } from "./core";
 
 export function Sheet({
@@ -21,7 +21,7 @@ export function Sheet({
   children?: React.ReactNode;
   footer?: React.ReactNode;
 }) {
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, justifyContent: "flex-end" }}>

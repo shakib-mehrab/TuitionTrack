@@ -3,7 +3,7 @@ import { C } from "@/constants/theme";
 import { Feather } from "@expo/vector-icons";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Animated, Pressable, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useInsets } from "@/lib/insets";
 import { T } from "./core";
 
 type ToastInput = { message: string; tone?: "success" | "error"; action?: { label: string; onPress: () => void }; duration?: number };
@@ -25,7 +25,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 function ToastView({ item, onDone }: { item: Item; onDone: () => void }) {
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

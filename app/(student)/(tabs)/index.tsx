@@ -1,4 +1,5 @@
 // Student · Home — next class, my tuitions, homework due.
+import { UpdateCard } from "@/components/UpdateCard";
 import { Avatar, Button, Card, EmptyState, Header, Loading, Ring, Screen, SectionTitle, T } from "@/components/kit/core";
 import { HomeworkRow } from "@/components/homework";
 import { JoinTuitionSheet } from "@/components/JoinTuition";
@@ -40,6 +41,7 @@ export default function StudentHome() {
   return (
     <Screen tabBar footer={<JoinTuitionSheet open={joining} onClose={() => setJoining(false)} />}>
       <Header eyebrow={formatLongDay(now)} title={`Hi, ${firstName(user?.name) || "there"}`} right={<Avatar name={user?.name ?? "?"} onPress={() => router.push("/(student)/profile")} />} />
+      <UpdateCard />
 
       {isLoading && tuitions.length === 0 ? (
         <Loading label="Loading your classes…" />

@@ -6,13 +6,13 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
 import React from "react";
 import { Pressable, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useInsets } from "@/lib/insets";
 import { T, type IconName } from "./kit/core";
 
 export type TabMeta = Record<string, { label: string; icon: IconName }>;
 
 export function TabBar({ state, navigation, meta, onFab }: BottomTabBarProps & { meta: TabMeta; onFab?: () => void }) {
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const routes = state.routes.filter((r) => meta[r.name]);
   const cells: (typeof routes[number] | "fab")[] = onFab ? [routes[0], routes[1], "fab", ...routes.slice(2)] : routes;
 
