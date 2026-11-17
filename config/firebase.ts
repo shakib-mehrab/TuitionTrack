@@ -42,7 +42,9 @@ export const STORAGE_PATHS = {
 export const CONFIG = {
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   ENABLE_OFFLINE_PERSISTENCE: true,
-  EMAIL_VERIFICATION_REQUIRED: true,
+  // Development builds skip email verification so test accounts work without an inbox.
+  // Release builds (__DEV__ === false) always require it.
+  EMAIL_VERIFICATION_REQUIRED: !__DEV__,
   ENABLE_FILE_UPLOADS: false, // Set to true if Firebase Storage is enabled
   GOOGLE_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
 } as const;

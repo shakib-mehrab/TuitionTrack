@@ -40,7 +40,11 @@ export interface Tuition {
   salary?: number; // monthly tuition fee
   // Status
   status: TuitionStatus;
-  paymentStatus: PaymentStatus;
+  paymentStatus: PaymentStatus; // payment status of the current (open) month
+  /** Current open month. Missing on tuitions from before month history ("legacy"). */
+  cycleId?: string;
+  /** ISO time the current open month started. */
+  cycleStartedAt?: string;
   createdAt: string;
 }
 
@@ -51,6 +55,8 @@ export interface ClassLog {
   tuitionId: string;
   date: string; // "2025-03-05"
   createdAt: string; // exact timestamp when entry was added
+  /** Month cycle this class belongs to (see Tuition.cycleId). Missing = legacy. */
+  cycleId?: string;
 }
 
 // ─── Activity Log ──────────────────────────────────────────────────

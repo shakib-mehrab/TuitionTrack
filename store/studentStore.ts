@@ -1,4 +1,5 @@
-import { FirestoreService } from "@/services/firebase/firestore.service";
+import { currentLogs, monthKey, openMonthKey } from "@/lib/cycle";
+import { FirestoreService, type PaymentHistory } from "@/services/firebase/firestore.service";
 import type {
     ActivityLog,
     ClassLog,
@@ -15,6 +16,7 @@ interface StudentState {
   classLogs: ClassLog[];
   activityLogs: ActivityLog[];
   homework: Homework[];
+  payments: PaymentHistory[];
 
   // Loading states
   isLoading: boolean;
@@ -46,6 +48,11 @@ interface StudentState {
   getTuitionById: (id: string) => Tuition | undefined;
   getClassCountForMonth: (tuitionId: string, month: string) => number;
   getTotalClassCount: (tuitionId: string) => number;
+  /** Class logs of the open month only, newest first. */
+  getCurrentLogs: (tuitionId: string) => ClassLog[];
+  /** "YYYY-MM" label of the tuition's open month. */
+  getOpenMonth: (tuitionId: string) => string;
+  getPaymentsForTuition: (tuitionId: string) => PaymentHistory[];
 }
 
 // Unsubscribe functions for Firebase listeners
@@ -53,12 +60,14 @@ let unsubscribeTuitions: (() => void) | null = null;
 let unsubscribeClassLogs: Map<string, () => void> = new Map();
 let unsubscribeHomework: Map<string, () => void> = new Map();
 let unsubscribeActivity: Map<string, () => void> = new Map();
+let unsubscribePayments: Map<string, () => void> = new Map();
 
 export const useStudentStore = create<StudentState>((set, get) => ({
   tuitions: [],
   classLogs: [],
   activityLogs: [],
   homework: [],
+  payments: [],
   isLoading: false,
   isInitialized: false,
 
@@ -127,6 +136,21 @@ export const useStudentStore = create<StudentState>((set, get) => ({
             );
             unsubscribeActivity.set(tuition.id, unsub);
           }
+
+          if (!unsubscribePayments.has(tuition.id)) {
+            const unsub = FirestoreService.subscribeToPaymentHistory(
+              tuition.id,
+              (rows) => {
+                set((state) => ({
+                  payments: [
+                    ...state.payments.filter((p) => p.tuitionId !== tuition.id),
+                    ...rows,
+                  ],
+                }));
+              },
+            );
+            unsubscribePayments.set(tuition.id, unsub);
+          }
         });
       },
     );
@@ -148,11 +172,15 @@ export const useStudentStore = create<StudentState>((set, get) => ({
     unsubscribeActivity.forEach((unsub) => unsub());
     unsubscribeActivity.clear();
 
+    unsubscribePayments.forEach((unsub) => unsub());
+    unsubscribePayments.clear();
+
     set({
       tuitions: [],
       classLogs: [],
       activityLogs: [],
       homework: [],
+      payments: [],
       isInitialized: false,
       isLoading: false,
     });
@@ -247,6 +275,23 @@ export const useStudentStore = create<StudentState>((set, get) => ({
       (l) => l.tuitionId === tuitionId && l.date.startsWith(month),
     ).length,
 
-  getTotalClassCount: (tuitionId) =>
-    get().classLogs.filter((l) => l.tuitionId === tuitionId).length,
+  getTotalClassCount: (tuitionId) => {
+    const t = get().tuitions.find((x) => x.id === tuitionId);
+    return t ? currentLogs(t, get().classLogs).length : 0;
+  },
+
+  getCurrentLogs: (tuitionId) => {
+    const t = get().tuitions.find((x) => x.id === tuitionId);
+    return t ? currentLogs(t, get().classLogs) : [];
+  },
+
+  getOpenMonth: (tuitionId) => {
+    const t = get().tuitions.find((x) => x.id === tuitionId);
+    return t ? openMonthKey(t, get().classLogs) : monthKey();
+  },
+
+  getPaymentsForTuition: (tuitionId) =>
+    get()
+      .payments.filter((p) => p.tuitionId === tuitionId)
+      .sort((a, b) => b.month.localeCompare(a.month)),
 }));

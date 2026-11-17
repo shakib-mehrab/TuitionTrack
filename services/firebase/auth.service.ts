@@ -28,18 +28,8 @@ export class AuthService {
       // Send verification email
       if (CONFIG.EMAIL_VERIFICATION_REQUIRED) {
         const actionCodeSettings = {
-          // URL to redirect to after verification
           url: `https://${firebaseConfig.authDomain}`,
-          // This must be true for email link sign-in
           handleCodeInApp: false,
-          iOS: {
-            bundleId: "com.tuitiontrack.app",
-          },
-          android: {
-            packageName: "com.tuitiontrack.app",
-            installApp: true,
-            minimumVersion: "12",
-          },
         };
         await userCredential.user.sendEmailVerification(actionCodeSettings);
       }
@@ -138,17 +128,9 @@ export class AuthService {
         throw new Error("No user is currently signed in");
       }
       const actionCodeSettings = {
-        url: `https://${firebaseConfig.authDomain}`,
-        handleCodeInApp: false,
-        iOS: {
-          bundleId: "com.tuitiontrack.app",
-        },
-        android: {
-          packageName: "com.tuitiontrack.app",
-          installApp: true,
-          minimumVersion: "12",
-        },
-      };
+          url: `https://${firebaseConfig.authDomain}`,
+          handleCodeInApp: false,
+        };
       await currentUser.sendEmailVerification(actionCodeSettings);
     } catch (error) {
       console.error("Resend verification error:", error);

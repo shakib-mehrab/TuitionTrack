@@ -23,6 +23,14 @@ export interface PaymentHistory {
   status: PaymentStatus;
   paidAt?: string;
   notes?: string;
+  /** Receipt number printed on the payment slip, set when first marked paid. */
+  slipNo?: string;
+  /** Month summary, written when the teacher closes the month. */
+  classCount?: number;
+  plannedClasses?: number;
+  classDates?: string[];
+  closedAt?: string;
+  cycleId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,6 +61,11 @@ function removeUndefined<T extends Record<string, any>>(obj: T): T {
     }
   });
   return cleaned;
+}
+
+/** Receipt number for a payment slip, e.g. TT-202611-7K3QF (stable per payment record). */
+export function makeSlipNo(month: string, docId: string): string {
+  return `TT-${month.replace("-", "")}-${docId.replace(/[^A-Za-z0-9]/g, "").slice(0, 5).toUpperCase()}`;
 }
 
 /**
@@ -89,6 +102,8 @@ export class FirestoreService {
       const tuition: Tuition = {
         ...data,
         id: tuitionRef.id,
+        cycleId: firestore().collection(COLLECTIONS.TUITIONS).doc().id,
+        cycleStartedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       };
 
@@ -253,15 +268,18 @@ export class FirestoreService {
   /**
    * Add class log
    */
-  static async addClassLog(tuitionId: string, date: string): Promise<ClassLog> {
+  static async addClassLog(tuitionId: string, date: string, cycleId?: string, logId?: string): Promise<ClassLog> {
     try {
-      const logRef = firestore().collection(COLLECTIONS.CLASS_LOGS).doc();
-      const classLog: ClassLog = {
+      const logRef = logId
+        ? firestore().collection(COLLECTIONS.CLASS_LOGS).doc(logId)
+        : firestore().collection(COLLECTIONS.CLASS_LOGS).doc();
+      const classLog: ClassLog = removeUndefined({
         id: logRef.id,
         tuitionId,
         date,
         createdAt: new Date().toISOString(),
-      };
+        cycleId,
+      });
 
       await logRef.set(classLog);
 
@@ -350,6 +368,65 @@ export class FirestoreService {
     } catch (error) {
       console.error("Reset class logs error:", error);
       throw new Error("Failed to reset class logs");
+    }
+  }
+
+  /**
+   * Close the open month: saves its summary (classes, dates, fee status) into the
+   * payment_history record for that month, then starts a new month at 0 classes.
+   * Class logs are kept, so past months stay viewable. Replaces the old "reset"
+   * that deleted every log.
+   */
+  static async closeMonth(
+    tuition: Tuition,
+    month: string,
+    currentLogs: ClassLog[],
+  ): Promise<void> {
+    try {
+      const now = new Date().toISOString();
+      const existing = await firestore()
+        .collection(COLLECTIONS.PAYMENT_HISTORY)
+        .where("tuitionId", "==", tuition.id)
+        .where("month", "==", month)
+        .limit(1)
+        .get();
+
+      const summary = {
+        classCount: currentLogs.length,
+        plannedClasses: tuition.plannedClassesPerMonth,
+        classDates: currentLogs.map((l) => l.date).sort(),
+        closedAt: now,
+        cycleId: tuition.cycleId ?? "legacy",
+        updatedAt: now,
+      };
+
+      if (!existing.empty) {
+        await existing.docs[0].ref.update(summary);
+      } else {
+        const ref = firestore().collection(COLLECTIONS.PAYMENT_HISTORY).doc();
+        const record: PaymentHistory = removeUndefined({
+          id: ref.id,
+          tuitionId: tuition.id,
+          teacherId: tuition.teacherId,
+          studentId: tuition.studentId ?? tuition.studentIds?.[0] ?? "",
+          month,
+          amount: tuition.salary ?? 0,
+          status: tuition.paymentStatus ?? "not_paid",
+          createdAt: now,
+          ...summary,
+        });
+        await ref.set(record);
+      }
+
+      await this.updateTuition(tuition.id, {
+        cycleId: firestore().collection(COLLECTIONS.TUITIONS).doc().id,
+        cycleStartedAt: now,
+        paymentStatus: "not_paid",
+      });
+      await this.addActivityLog(tuition.id, "reset", `Month closed (${month})`);
+    } catch (error) {
+      console.error("Close month error:", error);
+      throw new Error("Failed to close month");
     }
   }
 
@@ -616,12 +693,14 @@ export class FirestoreService {
         // Update existing record
         console.log("Updating existing payment record");
         const paymentDoc = existingPayment.docs[0];
+        const prev = paymentDoc.data() as PaymentHistory;
         await paymentDoc.ref.update(
           removeUndefined({
             status,
             amount,
             notes,
             paidAt: status === "paid" ? now : null,
+            slipNo: prev.slipNo ?? (status === "paid" ? makeSlipNo(month, paymentDoc.id) : undefined),
             updatedAt: now,
           }),
         );
@@ -640,6 +719,7 @@ export class FirestoreService {
           amount,
           status,
           paidAt: status === "paid" ? now : undefined,
+          slipNo: status === "paid" ? makeSlipNo(month, paymentRef.id) : undefined,
           notes,
           createdAt: now,
           updatedAt: now,
@@ -647,9 +727,11 @@ export class FirestoreService {
         await paymentRef.set(removeUndefined(payment));
       }
 
-      console.log("Updating tuition payment status");
-      // Update tuition payment status
-      await this.updateTuition(tuitionId, { paymentStatus: status });
+      // The tuition's paymentStatus tracks the open month only; closed months keep their own record.
+      const isClosedMonth = !existingPayment.empty && !!(existingPayment.docs[0].data() as PaymentHistory).closedAt;
+      if (!isClosedMonth) {
+        await this.updateTuition(tuitionId, { paymentStatus: status });
+      }
 
       console.log("Adding activity log");
       // Add activity log
@@ -698,8 +780,9 @@ export class FirestoreService {
   static subscribeToPaymentHistory(
     tuitionId: string,
     callback: (payments: PaymentHistory[]) => void,
+    retryCount = 0,
   ): () => void {
-    return firestore()
+    let unsub = firestore()
       .collection(COLLECTIONS.PAYMENT_HISTORY)
       .where("tuitionId", "==", tuitionId)
       .onSnapshot(
@@ -709,10 +792,18 @@ export class FirestoreService {
             .sort((a, b) => b.month.localeCompare(a.month));
           callback(payments);
         },
-        (error) => {
-          console.error("Subscribe to payment history error:", error);
+        (error: any) => {
+          // Same transient rules lag as class logs right after a tuition is created/joined.
+          if (error?.code === "firestore/permission-denied" && retryCount < 3) {
+            setTimeout(() => {
+              unsub = this.subscribeToPaymentHistory(tuitionId, callback, retryCount + 1);
+            }, 2000);
+            return;
+          }
+          console.warn("Subscribe to payment history error:", error);
         },
       );
+    return () => unsub();
   }
 
   // ============================================================

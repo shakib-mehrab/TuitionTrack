@@ -23,6 +23,8 @@ interface AuthState {
   resendVerificationEmail: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   initializeAuth: () => Promise<void>;
+  /** Re-checks the signed-in user's email verification; signs them in when verified. */
+  refreshVerification: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -109,6 +111,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error: any) {
       throw error;
     }
+  },
+
+  refreshVerification: async () => {
+    const current = auth().currentUser;
+    if (!current) return false;
+    await current.reload();
+    if (!auth().currentUser?.emailVerified) return false;
+    const user = await AuthService.getCurrentUser();
+    if (!user) return false;
+    set({ user, isAuthenticated: true, emailVerified: true });
+    return true;
   },
 
   initializeAuth: async () => {

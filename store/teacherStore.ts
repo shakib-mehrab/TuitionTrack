@@ -1,4 +1,6 @@
-import { FirestoreService } from "@/services/firebase/firestore.service";
+import { currentLogs, monthKey, openMonthKey } from "@/lib/cycle";
+import { FirestoreService, type PaymentHistory } from "@/services/firebase/firestore.service";
+import firestore from "@react-native-firebase/firestore";
 import type {
   ActivityLog,
   ClassLog,
@@ -16,6 +18,7 @@ interface TeacherState {
   classLogs: ClassLog[];
   activityLogs: ActivityLog[];
   homework: Homework[];
+  payments: PaymentHistory[];
 
   // Loading states
   isLoading: boolean;
@@ -31,7 +34,10 @@ interface TeacherState {
   deleteTuition: (id: string) => Promise<void>;
 
   // Class log CRUD
-  addClassLog: (tuitionId: string, date: string) => Promise<void>;
+  /** Logs a class in the open month; resolves to the new log id (for Undo). */
+  addClassLog: (tuitionId: string, date: string) => Promise<string>;
+  /** Closes the open month (keeps its logs) and starts a new one. */
+  closeMonth: (tuitionId: string) => Promise<void>;
   deleteClassLog: (logId: string, tuitionId: string) => Promise<void>;
   resetClassLogs: (tuitionId: string) => Promise<void>;
 
@@ -65,6 +71,11 @@ interface TeacherState {
   getTuitionById: (id: string) => Tuition | undefined;
   getClassCountForMonth: (tuitionId: string, month: string) => number;
   getTotalClassCount: (tuitionId: string) => number;
+  /** Class logs of the open month only, newest first. */
+  getCurrentLogs: (tuitionId: string) => ClassLog[];
+  /** "YYYY-MM" label of the tuition's open month. */
+  getOpenMonth: (tuitionId: string) => string;
+  getPaymentsForTuition: (tuitionId: string) => PaymentHistory[];
 
   // Invitation
   generateInviteCode: (tuitionId: string, teacherId: string) => Promise<string>;
@@ -75,12 +86,14 @@ let unsubscribeTuitions: (() => void) | null = null;
 let unsubscribeClassLogs: Map<string, () => void> = new Map();
 let unsubscribeHomework: Map<string, () => void> = new Map();
 let unsubscribeActivity: Map<string, () => void> = new Map();
+let unsubscribePayments: Map<string, () => void> = new Map();
 
 export const useTeacherStore = create<TeacherState>((set, get) => ({
   tuitions: [],
   classLogs: [],
   activityLogs: [],
   homework: [],
+  payments: [],
   isLoading: false,
   isInitialized: false,
 
@@ -149,6 +162,21 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
             );
             unsubscribeActivity.set(tuition.id, unsub);
           }
+
+          if (!unsubscribePayments.has(tuition.id)) {
+            const unsub = FirestoreService.subscribeToPaymentHistory(
+              tuition.id,
+              (rows) => {
+                set((state) => ({
+                  payments: [
+                    ...state.payments.filter((p) => p.tuitionId !== tuition.id),
+                    ...rows,
+                  ],
+                }));
+              },
+            );
+            unsubscribePayments.set(tuition.id, unsub);
+          }
         });
       },
     );
@@ -170,11 +198,15 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
     unsubscribeActivity.forEach((unsub) => unsub());
     unsubscribeActivity.clear();
 
+    unsubscribePayments.forEach((unsub) => unsub());
+    unsubscribePayments.clear();
+
     set({
       tuitions: [],
       classLogs: [],
       activityLogs: [],
       homework: [],
+      payments: [],
       isInitialized: false,
       isLoading: false,
     });
@@ -228,30 +260,32 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
 
   // ── Class Logs ──
   addClassLog: async (tuitionId, date) => {
-    // Optimistic update - add to local state immediately
-    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const cycleId = get().tuitions.find((t) => t.id === tuitionId)?.cycleId;
+    // Pre-generate the id so the optimistic entry and the stored log match (Undo needs it).
+    const logId = firestore().collection("class_logs").doc().id;
     const optimisticLog: ClassLog = {
-      id: tempId,
+      id: logId,
       tuitionId,
       date,
       createdAt: new Date().toISOString(),
+      ...(cycleId ? { cycleId } : {}),
     };
 
-    set((state) => ({
-      classLogs: [optimisticLog, ...state.classLogs],
-    }));
+    set((state) => ({ classLogs: [optimisticLog, ...state.classLogs] }));
 
     try {
-      await FirestoreService.addClassLog(tuitionId, date);
-      // Real-time listener will replace the optimistic log with the real one
+      await FirestoreService.addClassLog(tuitionId, date, cycleId, logId);
+      return logId;
     } catch (error) {
-      // Remove optimistic log on error
-      set((state) => ({
-        classLogs: state.classLogs.filter((log) => log.id !== tempId),
-      }));
-      console.error("Add class log error:", error);
+      set((state) => ({ classLogs: state.classLogs.filter((log) => log.id !== logId) }));
       throw error;
     }
+  },
+
+  closeMonth: async (tuitionId) => {
+    const t = get().tuitions.find((x) => x.id === tuitionId);
+    if (!t) throw new Error("Tuition not found");
+    await FirestoreService.closeMonth(t, openMonthKey(t, get().classLogs), currentLogs(t, get().classLogs));
   },
 
   deleteClassLog: async (logId, tuitionId) => {
@@ -462,8 +496,25 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
       (l) => l.tuitionId === tuitionId && l.date.startsWith(month),
     ).length,
 
-  getTotalClassCount: (tuitionId) =>
-    get().classLogs.filter((l) => l.tuitionId === tuitionId).length,
+  getTotalClassCount: (tuitionId) => {
+    const t = get().tuitions.find((x) => x.id === tuitionId);
+    return t ? currentLogs(t, get().classLogs).length : 0;
+  },
+
+  getCurrentLogs: (tuitionId) => {
+    const t = get().tuitions.find((x) => x.id === tuitionId);
+    return t ? currentLogs(t, get().classLogs) : [];
+  },
+
+  getOpenMonth: (tuitionId) => {
+    const t = get().tuitions.find((x) => x.id === tuitionId);
+    return t ? openMonthKey(t, get().classLogs) : monthKey();
+  },
+
+  getPaymentsForTuition: (tuitionId) =>
+    get()
+      .payments.filter((p) => p.tuitionId === tuitionId)
+      .sort((a, b) => b.month.localeCompare(a.month)),
 
   // ── Invitation ──
   generateInviteCode: async (tuitionId, teacherId) => {
