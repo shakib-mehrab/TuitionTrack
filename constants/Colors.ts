@@ -85,6 +85,9 @@ export const lightColors = {
   textTertiary: p.slate400,
   textOnPrimary: p.white,
   textDisabled: p.slate300,
+  onPrimary: p.white,
+  onSurface: p.slate900,
+  onBackground: p.slate900,
 
   tabBar: p.white,
   tabBarActive: p.indigo500,
@@ -143,6 +146,9 @@ export const darkColors = {
   textTertiary: p.slate500,
   textOnPrimary: p.white,
   textDisabled: p.slate600,
+  onPrimary: p.white,
+  onSurface: p.slate50,
+  onBackground: p.slate50,
 
   tabBar: p.navy900,
   tabBarActive: p.indigo400,

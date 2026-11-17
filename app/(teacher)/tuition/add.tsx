@@ -104,6 +104,7 @@ export default function AddTuitionScreen() {
               onChangeText={(v) => { setSubject(v); setErrors((e) => ({ ...e, subject: '' })); }}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
+              textColor={Colors.black}
               style={styles.input}
               outlineStyle={styles.inputOutline}
             />
@@ -143,7 +144,8 @@ export default function AddTuitionScreen() {
                   onChangeTime={setStartTime}
                   outlineColor={Colors.border}
                   activeOutlineColor={Colors.primary}
-                  style={styles.input}
+                  textColor={Colors.black}
+              style={styles.input}
                 />
                 {errors.startTime && <HelperText type="error">{errors.startTime}</HelperText>}
               </View>
@@ -158,7 +160,8 @@ export default function AddTuitionScreen() {
                   onChangeTime={setEndTime}
                   outlineColor={Colors.border}
                   activeOutlineColor={Colors.primary}
-                  style={styles.input}
+                  textColor={Colors.black}
+              style={styles.input}
                 />
                 {errors.endTime && <HelperText type="error">{errors.endTime}</HelperText>}
               </View>
@@ -175,6 +178,7 @@ export default function AddTuitionScreen() {
               keyboardType="numeric"
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
+              textColor={Colors.black}
               style={styles.input}
               outlineStyle={styles.inputOutline}
             />
@@ -190,6 +194,7 @@ export default function AddTuitionScreen() {
               onChangeText={setStudentName}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
+              textColor={Colors.black}
               style={styles.input}
               outlineStyle={styles.inputOutline}
             />
@@ -202,6 +207,7 @@ export default function AddTuitionScreen() {
               autoCapitalize="none"
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
+              textColor={Colors.black}
               style={styles.input}
               outlineStyle={styles.inputOutline}
             />
@@ -213,6 +219,7 @@ export default function AddTuitionScreen() {
               keyboardType="numeric"
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
+              textColor={Colors.black}
               style={styles.input}
               outlineStyle={styles.inputOutline}
             />
@@ -318,7 +325,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.semibold,
   },
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  input: { backgroundColor: Colors.surface, marginBottom: Spacing.xs },
+  input: { backgroundColor: Colors.white, marginBottom: Spacing.xs },
   inputOutline: { borderRadius: BorderRadius.md },
   inputLabel: {
     fontSize: FontSize.xs,

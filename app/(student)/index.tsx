@@ -197,7 +197,7 @@ export default function StudentDashboard() {
           title={user?.name ? user.name.trim().split(' ').slice(-1)[0] : 'Student'}
           titleStyle={styles.appbarTitle}
         />
-        <Appbar.Action icon="logout" onPress={logout} color={Colors.textPrimary} />
+        <Appbar.Action icon="logout" onPress={logout} color={Colors.white} />
       </Appbar.Header>
 
       <FlatList
@@ -304,7 +304,8 @@ export default function StudentDashboard() {
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
               outlineStyle={{ borderRadius: BorderRadius.md }}
-              style={{ backgroundColor: Colors.surface }}
+              textColor={Colors.black}
+              style={{ backgroundColor: Colors.white }}
             />
             {codeError ? <HelperText type="error" visible>{codeError}</HelperText> : null}
           </Dialog.Content>
@@ -332,9 +333,9 @@ export default function StudentDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  appbar: { backgroundColor: Colors.backgroundDeep },
+  appbar: { backgroundColor: Colors.primary },
   appbarTitle: {
-    color: Colors.textPrimary,
+    color: Colors.white,
     fontSize: FontSize.lg,
     fontFamily: FontFamily.semibold,
   },

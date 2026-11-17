@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.white,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: FontSize.base,
-    color: Colors.textPrimary,
+    color: Colors.black,
     height: '100%',
   },
   multilineInput: { textAlignVertical: 'top', paddingTop: Spacing.md, paddingBottom: Spacing.md },

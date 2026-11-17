@@ -155,7 +155,8 @@ function HomeworkCard({
                 onChangeText={setCommentText}
                 outlineColor={Colors.border}
                 activeOutlineColor={Colors.primary}
-                style={styles.commentInput}
+                textColor={Colors.black}
+                style={[styles.commentInput, { backgroundColor: Colors.white }]}
                 multiline
                 dense
               />
@@ -208,7 +209,7 @@ export default function StudentHomeworkScreen() {
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => router.back()} color={Colors.textPrimary} />
+        <Appbar.BackAction onPress={() => router.back()} color={Colors.white} />
         <Appbar.Content
           title="Homework"
           subtitle={`${pendingCount} pending`}
@@ -261,13 +262,13 @@ export default function StudentHomeworkScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  appbar: { backgroundColor: Colors.backgroundDeep },
+  appbar: { backgroundColor: Colors.primary },
   appbarTitle: {
-    color: Colors.textPrimary,
+    color: Colors.white,
     fontSize: FontSize.lg,
     fontFamily: FontFamily.semibold,
   },
-  appbarSubtitle: { color: Colors.textPrimary + 'CC', fontSize: FontSize.xs, fontFamily: FontFamily.regular },
+  appbarSubtitle: { color: Colors.white + 'CC', fontSize: FontSize.xs, fontFamily: FontFamily.regular },
   filterRow: {
     flexDirection: 'row',
     padding: Spacing.md,

@@ -257,9 +257,10 @@ export default function TeacherDashboard() {
           <View style={styles.cardActionsRow}>
             <Button
               compact
-              mode="text"
-              textColor={Colors.primary}
-              style={{ paddingHorizontal: 0, minWidth: 0, alignSelf: 'center' }}
+              mode="contained"
+              textColor={Colors.white}
+              buttonColor={Colors.primary}
+              style={{ borderRadius: BorderRadius.md, paddingHorizontal: Spacing.sm }}
               onPress={() => router.push(`/(teacher)/tuition/${item.id}` as any)}
             >
               View
@@ -341,7 +342,7 @@ export default function TeacherDashboard() {
         <Appbar.Action
           icon="logout"
           onPress={logout}
-          color={Colors.textPrimary}
+          color={Colors.white}
         />
       </Appbar.Header>
 
@@ -447,9 +448,9 @@ export default function TeacherDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  appbar: { backgroundColor: Colors.backgroundDeep },
+  appbar: { backgroundColor: Colors.primary },
   appbarTitle: {
-    color: Colors.textPrimary,
+    color: Colors.white,
     fontSize: FontSize.lg,
     fontFamily: FontFamily.semibold,
   },

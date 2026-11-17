@@ -686,12 +686,12 @@ export default function TuitionDetailScreen() {
             <ScrollView contentContainerStyle={dStyles.dialogContent}>
               <Text style={dStyles.fieldLabel}>Subject *</Text>
               <TextInput mode="outlined" placeholder="Subject name" value={hwSubject} onChangeText={setHwSubject}
-                outlineColor={Colors.border} activeOutlineColor={Colors.primary} style={dStyles.input} outlineStyle={{ borderRadius: BorderRadius.md }} />
+                outlineColor={Colors.border} activeOutlineColor={Colors.primary} textColor={Colors.black} style={dStyles.input} outlineStyle={{ borderRadius: BorderRadius.md }} />
               {hwErrors.subject && <HelperText type="error">{hwErrors.subject}</HelperText>}
 
               <Text style={dStyles.fieldLabel}>Chapter *</Text>
               <TextInput mode="outlined" placeholder="e.g. Chapter 5" value={hwChapter} onChangeText={setHwChapter}
-                outlineColor={Colors.border} activeOutlineColor={Colors.primary} style={dStyles.input} outlineStyle={{ borderRadius: BorderRadius.md }} />
+                outlineColor={Colors.border} activeOutlineColor={Colors.primary} textColor={Colors.black} style={dStyles.input} outlineStyle={{ borderRadius: BorderRadius.md }} />
               {hwErrors.chapter && <HelperText type="error">{hwErrors.chapter}</HelperText>}
 
               <Text style={dStyles.fieldLabel}>Task *</Text>
@@ -1149,7 +1149,7 @@ const dStyles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  input: { backgroundColor: Colors.surface, marginBottom: 0 },
+  input: { backgroundColor: Colors.white, marginBottom: Spacing.sm, textColor: Colors.black },
   dialogActions: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
